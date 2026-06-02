@@ -106,7 +106,6 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
   Future<void> _search(String query) async {
     final token = _token;
     if (token == null) return;
-
     setState(() {
       _isSearching = true;
       _searchError = null;
@@ -119,7 +118,9 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
     } on ApiException catch (e) {
       if (mounted) setState(() => _searchError = e.message);
     } catch (error) {
-      if (mounted) setState(() => _searchError = 'Error al buscar. Intenta de nuevo.');
+      if (mounted) {
+        setState(() => _searchError = 'Error al buscar. Intenta de nuevo.');
+      }
     } finally {
       if (mounted) setState(() => _isSearching = false);
     }
@@ -128,7 +129,6 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
   Future<void> _resolve(PlacePrediction prediction) async {
     final token = _token;
     if (token == null) return;
-
     setState(() {
       _isSearching = true;
       _predictions = [];
@@ -151,20 +151,16 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
     final resolved = _resolved;
     final token = _token;
     if (resolved == null || token == null) return;
-
     setState(() => _isSaving = true);
     try {
-      final sourceNetwork = _detectSourceNetwork(_urlController.text);
-      await ref
-          .read(savesApiProvider)
-          .createSave(
-            token: token,
-            placeId: resolved.place.id,
-            sourceNetwork: sourceNetwork,
-            sourceUrl: _emptyToNull(_urlController.text),
-            note: _emptyToNull(_noteController.text),
-            visibility: _visibility,
-          );
+      await ref.read(savesApiProvider).createSave(
+        token: token,
+        placeId: resolved.place.id,
+        sourceNetwork: _detectSourceNetwork(_urlController.text),
+        sourceUrl: _emptyToNull(_urlController.text),
+        note: _emptyToNull(_noteController.text),
+        visibility: _visibility,
+      );
       ref.invalidate(pendingSavesProvider);
       _reset();
       _showMessage('¡Lugar guardado!');
@@ -228,7 +224,6 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 32),
       children: [
-        // Campo de búsqueda
         TextField(
           controller: _searchController,
           onChanged: _onSearchChanged,
@@ -253,8 +248,6 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
                 : null,
           ),
         ),
-
-        // Error búsqueda
         if (_searchError != null) ...[
           const SizedBox(height: 8),
           Text(
@@ -262,8 +255,6 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
             style: TextStyle(color: AppTheme.error, fontSize: 13),
           ),
         ],
-
-        // Lista predicciones
         if (_predictions.isNotEmpty) ...[
           const SizedBox(height: 8),
           ...List.generate(_predictions.length, (i) {
@@ -281,14 +272,14 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
                   p.mainText ?? p.description,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
-                subtitle: p.secondaryText != null ? Text(p.secondaryText!) : null,
+                subtitle: p.secondaryText != null
+                    ? Text(p.secondaryText!)
+                    : null,
                 onTap: () => _resolve(p),
               ),
             );
           }),
         ],
-
-        // Lugar resuelto — tarjeta de confirmación
         if (_resolved != null) ...[
           const SizedBox(height: 16),
           _ResolvedPlaceCard(result: _resolved!),
@@ -365,8 +356,6 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
             label: const Text('Guardar lugar'),
           ),
         ],
-
-        // Estado inicial vacío
         if (_predictions.isEmpty && _resolved == null && !_isSearching) ...[
           const SizedBox(height: 48),
           const Center(
@@ -427,14 +416,22 @@ class _ResolvedPlaceCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 const Text(
                   'Lugar encontrado',
                   style: TextStyle(color: Colors.white70, fontSize: 13),
                 ),
                 const Spacer(),
-                Icon(Icons.location_on_rounded, color: Colors.white.withValues(alpha: 0.5), size: 16),
+                Icon(
+                  Icons.location_on_rounded,
+                  color: Colors.white.withValues(alpha: 0.5),
+                  size: 16,
+                ),
               ],
             ),
             const SizedBox(height: 10),
@@ -457,9 +454,15 @@ class _ResolvedPlaceCard extends StatelessWidget {
               const SizedBox(height: 6),
               Row(
                 children: [
-                  _Tag(label: '${google.latitude!.toStringAsFixed(4)}°N', color: Colors.white24),
+                  _Tag(
+                    label: '${google.latitude!.toStringAsFixed(4)}°N',
+                    color: Colors.white24,
+                  ),
                   const SizedBox(width: 8),
-                  _Tag(label: '${google.longitude!.toStringAsFixed(4)}°W', color: Colors.white24),
+                  _Tag(
+                    label: '${google.longitude!.toStringAsFixed(4)}°W',
+                    color: Colors.white24,
+                  ),
                 ],
               ),
             ],
@@ -495,7 +498,7 @@ class _Tag extends StatelessWidget {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// TAB MANUAL
+// TAB MANUAL — REDISEÑADO
 // ──────────────────────────────────────────────────────────────────────────────
 
 class _ManualTab extends ConsumerStatefulWidget {
@@ -506,31 +509,51 @@ class _ManualTab extends ConsumerStatefulWidget {
 }
 
 class _ManualTabState extends ConsumerState<_ManualTab> {
-  static const _defaultLatitude = 27.4779;
-  static const _defaultLongitude = -99.5496;
+  // Coordenadas por defecto: centro de Nuevo Laredo, Tamaulipas.
+  //
+  // FIX: los controllers NO se inicializan como field-initializers porque el DDC
+  // (compilador web de Dart) puede pasar el double crudo a TextEditingController
+  // sin llamar toString(), causando TypeError. Se inicializan en initState().
+  static const double _defLat = 27.4779;
+  static const double _defLng = -99.5496;
 
   final _formKey = GlobalKey<FormState>();
-  final _urlController = TextEditingController();
-  final _nameController = TextEditingController();
-  final _cityController = TextEditingController(text: 'Nuevo Laredo');
-  final _latitudeController = TextEditingController(
-    text: _defaultLatitude.toString(),
-  );
-  final _longitudeController = TextEditingController(
-    text: _defaultLongitude.toString(),
-  );
-  final _noteController = TextEditingController();
+
+  late final TextEditingController _urlCtrl;
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _cityCtrl;
+  late final TextEditingController _latCtrl;
+  late final TextEditingController _lngCtrl;
+  late final TextEditingController _noteCtrl;
+
   String _visibility = 'private';
   bool _isSaving = false;
 
   @override
+  void initState() {
+    super.initState();
+    _urlCtrl = TextEditingController();
+    _nameCtrl = TextEditingController();
+    _cityCtrl = TextEditingController(text: 'Nuevo Laredo');
+    // toStringAsFixed(4) produce '27.4779' / '-99.5496' (String, nunca double).
+    _latCtrl = TextEditingController(text: _defLat.toStringAsFixed(4));
+    _lngCtrl = TextEditingController(text: _defLng.toStringAsFixed(4));
+    _noteCtrl = TextEditingController();
+
+    // Dispara rebuild para el preview en vivo.
+    _nameCtrl.addListener(() => setState(() {}));
+    _cityCtrl.addListener(() => setState(() {}));
+    _urlCtrl.addListener(() => setState(() {}));
+  }
+
+  @override
   void dispose() {
-    _urlController.dispose();
-    _nameController.dispose();
-    _cityController.dispose();
-    _latitudeController.dispose();
-    _longitudeController.dispose();
-    _noteController.dispose();
+    _urlCtrl.dispose();
+    _nameCtrl.dispose();
+    _cityCtrl.dispose();
+    _latCtrl.dispose();
+    _lngCtrl.dispose();
+    _noteCtrl.dispose();
     super.dispose();
   }
 
@@ -538,132 +561,193 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
 
   @override
   Widget build(BuildContext context) {
-    final sourceNetwork = _detectSourceNetwork(_urlController.text);
+    final name = _nameCtrl.text.trim();
+    final city = _cityCtrl.text.trim();
+    final network = _detectSourceNetwork(_urlCtrl.text);
+
     return Form(
       key: _formKey,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 32),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 56),
         children: [
-          TextFormField(
-            controller: _urlController,
-            keyboardType: TextInputType.url,
-            textInputAction: TextInputAction.next,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              labelText: 'Enlace donde lo viste',
-              hintText: 'https://...',
-              prefixIcon: const Icon(Icons.link_rounded),
-              suffixIcon: sourceNetwork != 'manual'
-                  ? Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Center(
-                        widthFactor: 1,
-                        child: _NetworkBadge(network: sourceNetwork),
-                      ),
-                    )
-                  : null,
-            ),
-            validator: _validateUrl,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: _nameController,
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              labelText: 'Nombre del lugar',
-              prefixIcon: Icon(Icons.storefront_rounded),
-            ),
-            validator: (value) {
-              if (value == null || value.trim().length < 2) {
-                return 'Escribe el nombre del lugar.';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: _cityController,
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              labelText: 'Ciudad',
-              prefixIcon: Icon(Icons.location_city_rounded),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _latitudeController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                    signed: true,
-                  ),
-                  decoration: const InputDecoration(labelText: 'Latitud'),
-                  validator: _validateCoordinate,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextFormField(
-                  controller: _longitudeController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                    signed: true,
-                  ),
-                  decoration: const InputDecoration(labelText: 'Longitud'),
-                  validator: _validateCoordinate,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: _noteController,
-            minLines: 3,
-            maxLines: 5,
-            decoration: const InputDecoration(
-              labelText: 'Nota',
-              alignLabelWithHint: true,
-              prefixIcon: Icon(Icons.notes_rounded),
-            ),
-          ),
-          const SizedBox(height: 16),
-          SegmentedButton<String>(
-            selected: {_visibility},
-            onSelectionChanged: (v) => setState(() => _visibility = v.single),
-            segments: const [
-              ButtonSegment(
-                value: 'private',
-                icon: Icon(Icons.lock_rounded),
-                label: Text('Privado'),
-              ),
-              ButtonSegment(
-                value: 'group',
-                icon: Icon(Icons.groups_rounded),
-                label: Text('Grupo'),
-              ),
-              ButtonSegment(
-                value: 'public',
-                icon: Icon(Icons.public_rounded),
-                label: Text('Público'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          FilledButton.icon(
-            onPressed: _isSaving ? null : _submit,
-            icon: _isSaving
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.3,
-                      color: Colors.white,
-                    ),
+          // ── Chip de contexto
+          const _ManualHintBanner(),
+          const SizedBox(height: 24),
+
+          // ── Preview en vivo (aparece cuando hay nombre)
+          AnimatedSize(
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic,
+            child: name.isNotEmpty
+                ? _PlacePreviewCard(
+                    name: name,
+                    city: city.isNotEmpty ? city : 'Sin ciudad',
                   )
-                : const Icon(Icons.bookmark_add_rounded),
-            label: const Text('Guardar'),
+                : const SizedBox.shrink(),
+          ),
+          if (name.isNotEmpty) const SizedBox(height: 24),
+
+          // ── El lugar
+          _Section(
+            icon: Icons.storefront_rounded,
+            label: 'El lugar',
+            color: AppTheme.electricSapphire,
+            children: [
+              TextFormField(
+                controller: _nameCtrl,
+                textInputAction: TextInputAction.next,
+                textCapitalization: TextCapitalization.words,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Nombre del lugar *',
+                  prefixIcon: Icon(Icons.storefront_rounded),
+                  hintText: 'Tacos El Gordo, Café Central...',
+                ),
+                validator: (v) => (v == null || v.trim().length < 2)
+                    ? 'Escribe el nombre del lugar.'
+                    : null,
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _cityCtrl,
+                textInputAction: TextInputAction.next,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Ciudad',
+                  prefixIcon: Icon(Icons.location_city_rounded),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // ── Coordenadas
+          _Section(
+            icon: Icons.my_location_rounded,
+            label: 'Coordenadas',
+            color: AppTheme.green,
+            trailing: TextButton.icon(
+              onPressed: _showCoordsHelp,
+              icon: const Icon(Icons.help_outline_rounded, size: 15),
+              label: const Text('¿Cómo obtenerlas?'),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 2,
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _latCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                        signed: true,
+                      ),
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Latitud',
+                        prefixIcon: Icon(Icons.swap_vert_rounded),
+                      ),
+                      validator: _validateCoord,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _lngCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                        signed: true,
+                      ),
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Longitud',
+                        prefixIcon: Icon(Icons.swap_horiz_rounded),
+                      ),
+                      validator: _validateCoord,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // ── Origen (opcional)
+          _Section(
+            icon: Icons.link_rounded,
+            label: 'Origen',
+            color: AppTheme.warm,
+            children: [
+              TextFormField(
+                controller: _urlCtrl,
+                keyboardType: TextInputType.url,
+                textInputAction: TextInputAction.next,
+                decoration: InputDecoration(
+                  labelText: 'Enlace donde lo viste (opcional)',
+                  hintText: 'https://...',
+                  prefixIcon: const Icon(Icons.link_rounded),
+                  suffixIcon: network != 'manual'
+                      ? Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Center(
+                            widthFactor: 1,
+                            child: _NetworkBadge(network: network),
+                          ),
+                        )
+                      : null,
+                ),
+                validator: _validateUrl,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // ── Nota
+          _Section(
+            icon: Icons.notes_rounded,
+            label: 'Nota',
+            color: AppTheme.muted,
+            children: [
+              TextFormField(
+                controller: _noteCtrl,
+                minLines: 3,
+                maxLines: 5,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Nota personal (opcional)',
+                  alignLabelWithHint: true,
+                  prefixIcon: Icon(Icons.notes_rounded),
+                  hintText: 'Ir un viernes, pedir los de pastor...',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // ── Visibilidad
+          _VisibilityPicker(
+            value: _visibility,
+            onChanged: (v) => setState(() => _visibility = v),
+          ),
+          const SizedBox(height: 28),
+
+          // ── Botón guardar con gradient
+          _SaveButton(
+            isSaving: _isSaving,
+            label: name.isNotEmpty ? 'Guardar "$name"' : 'Guardar lugar',
+            onTap: _submit,
           ),
         ],
       ),
@@ -672,80 +756,67 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-
     HapticFeedback.mediumImpact();
 
     final token = _token;
     if (token == null) {
-      _showMessage('Tu sesión ya no está activa.');
+      _showSnack('Tu sesión ya no está activa.');
       return;
     }
 
     setState(() => _isSaving = true);
     try {
-      final place = await ref
-          .read(placesApiProvider)
-          .createOwnPlace(
-            token: token,
-            name: _nameController.text.trim(),
-            latitude: double.parse(_latitudeController.text.trim()),
-            longitude: double.parse(_longitudeController.text.trim()),
-            city: _emptyToNull(_cityController.text),
-          );
+      final place = await ref.read(placesApiProvider).createOwnPlace(
+        token: token,
+        name: _nameCtrl.text.trim(),
+        latitude: double.parse(_latCtrl.text.trim()),
+        longitude: double.parse(_lngCtrl.text.trim()),
+        city: _emptyToNull(_cityCtrl.text),
+      );
 
-      await ref
-          .read(savesApiProvider)
-          .createSave(
-            token: token,
-            placeId: place.id,
-            sourceNetwork: _detectSourceNetwork(_urlController.text),
-            sourceUrl: _emptyToNull(_urlController.text),
-            note: _emptyToNull(_noteController.text),
-            visibility: _visibility,
-          );
+      await ref.read(savesApiProvider).createSave(
+        token: token,
+        placeId: place.id,
+        sourceNetwork: _detectSourceNetwork(_urlCtrl.text),
+        sourceUrl: _emptyToNull(_urlCtrl.text),
+        note: _emptyToNull(_noteCtrl.text),
+        visibility: _visibility,
+      );
 
       ref.invalidate(pendingSavesProvider);
       _clearForm();
-      _showMessage('Lugar guardado.');
+      _showSnack('¡Lugar guardado!');
     } on ApiException catch (error) {
-      _showMessage(error.message);
+      _showSnack(error.message);
     } catch (error) {
-      _showMessage('Error inesperado: $error');
+      _showSnack('Error inesperado: $error');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
   }
 
-  String? _validateUrl(String? value) {
-    final text = value?.trim();
-    if (text == null || text.isEmpty) return null;
-    final uri = Uri.tryParse(text);
-    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
-      return 'Pega un enlace válido.';
-    }
-    if (uri.scheme != 'http' && uri.scheme != 'https') {
-      return 'El enlace debe iniciar con http o https.';
-    }
-    return null;
-  }
-
-  String? _validateCoordinate(String? value) {
-    final coordinate = double.tryParse(value?.trim() ?? '');
-    if (coordinate == null) return 'Dato inválido.';
-    return null;
-  }
-
   void _clearForm() {
-    _urlController.clear();
-    _nameController.clear();
-    _cityController.text = 'Nuevo Laredo';
-    _latitudeController.text = _defaultLatitude.toString();
-    _longitudeController.text = _defaultLongitude.toString();
-    _noteController.clear();
+    _urlCtrl.clear();
+    _nameCtrl.clear();
+    _cityCtrl.text = 'Nuevo Laredo';
+    _latCtrl.text = _defLat.toStringAsFixed(4);
+    _lngCtrl.text = _defLng.toStringAsFixed(4);
+    _noteCtrl.clear();
     setState(() => _visibility = 'private');
   }
 
-  void _showMessage(String message) {
+  void _showCoordsHelp() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => const _CoordsHelpSheet(),
+    );
+  }
+
+  void _showSnack(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
@@ -753,8 +824,26 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
   }
 
   static String? _emptyToNull(String value) {
-    final trimmed = value.trim();
-    return trimmed.isEmpty ? null : trimmed;
+    final t = value.trim();
+    return t.isEmpty ? null : t;
+  }
+
+  static String? _validateUrl(String? value) {
+    final text = value?.trim();
+    if (text == null || text.isEmpty) return null;
+    final uri = Uri.tryParse(text);
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+      return 'Pega un enlace válido.';
+    }
+    if (uri.scheme != 'http' && uri.scheme != 'https') {
+      return 'El enlace debe empezar con http o https.';
+    }
+    return null;
+  }
+
+  static String? _validateCoord(String? value) {
+    if (double.tryParse(value?.trim() ?? '') == null) return 'Valor inválido.';
+    return null;
   }
 
   static String _detectSourceNetwork(String value) {
@@ -778,7 +867,510 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Widgets compartidos
+// Widgets propios del tab Manual
+// ──────────────────────────────────────────────────────────────────────────────
+
+/// Chip que explica cuándo usar el modo manual.
+class _ManualHintBanner extends StatelessWidget {
+  const _ManualHintBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.warmSoft,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.warm.withValues(alpha: 0.35)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppTheme.warm.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.push_pin_rounded,
+              color: AppTheme.warm,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Lugar propio',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15,
+                    color: AppTheme.ink,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Para lugares que no están en Google Maps',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.muted,
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tarjeta de preview en vivo. Aparece al empezar a escribir el nombre.
+class _PlacePreviewCard extends StatelessWidget {
+  const _PlacePreviewCard({required this.name, required this.city});
+
+  final String name;
+  final String city;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: AppTheme.deepBrandGradient,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.electricSapphire.withValues(alpha: 0.28),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.pin_drop_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 18,
+                    height: 1.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_city_rounded,
+                      color: Colors.white60,
+                      size: 13,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        city,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Text(
+              'Propio',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Sección con encabezado de ícono + label + children.
+class _Section extends StatelessWidget {
+  const _Section({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.children,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final List<Widget> children;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(icon, color: color, size: 16),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 14,
+                color: AppTheme.ink,
+              ),
+            ),
+            if (trailing != null) ...[const Spacer(), trailing!],
+          ],
+        ),
+        const SizedBox(height: 10),
+        ...children,
+      ],
+    );
+  }
+}
+
+/// Selector de visibilidad dentro de un card.
+class _VisibilityPicker extends StatelessWidget {
+  const _VisibilityPicker({required this.value, required this.onChanged});
+
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppTheme.line),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.shield_rounded, size: 16, color: AppTheme.muted),
+              SizedBox(width: 6),
+              Text(
+                'Visibilidad',
+                style: TextStyle(
+                  color: AppTheme.muted,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SegmentedButton<String>(
+            selected: {value},
+            onSelectionChanged: (v) => onChanged(v.single),
+            segments: const [
+              ButtonSegment(
+                value: 'private',
+                icon: Icon(Icons.lock_rounded, size: 16),
+                label: Text('Solo yo'),
+              ),
+              ButtonSegment(
+                value: 'group',
+                icon: Icon(Icons.groups_rounded, size: 16),
+                label: Text('Grupo'),
+              ),
+              ButtonSegment(
+                value: 'public',
+                icon: Icon(Icons.public_rounded, size: 16),
+                label: Text('Público'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Botón de guardar con gradient y sombra. El label muestra el nombre del lugar.
+class _SaveButton extends StatelessWidget {
+  const _SaveButton({
+    required this.isSaving,
+    required this.label,
+    required this.onTap,
+  });
+
+  final bool isSaving;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 54,
+      decoration: BoxDecoration(
+        gradient: AppTheme.deepBrandGradient,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.electricSapphire.withValues(alpha: 0.38),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          onTap: isSaving ? null : onTap,
+          borderRadius: BorderRadius.circular(18),
+          splashColor: Colors.white.withValues(alpha: 0.15),
+          child: Center(
+            child: isSaving
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.bookmark_add_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          label,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom sheet con instrucciones para obtener coordenadas desde Google Maps.
+class _CoordsHelpSheet extends StatelessWidget {
+  const _CoordsHelpSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        24,
+        24,
+        24,
+        24 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppTheme.line,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            '¿Cómo obtener coordenadas?',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 20),
+          const _HelpStep(
+            number: '1',
+            color: AppTheme.electricSapphire,
+            text: 'Abre Google Maps en tu teléfono.',
+          ),
+          const SizedBox(height: 14),
+          const _HelpStep(
+            number: '2',
+            color: AppTheme.electricSapphire,
+            text:
+                'Mantén presionado el punto exacto del lugar hasta que aparezca un marcador rojo.',
+          ),
+          const SizedBox(height: 14),
+          const _HelpStep(
+            number: '3',
+            color: AppTheme.electricSapphire,
+            text:
+                'En la parte inferior verás las coordenadas (ej. 27.4779, -99.5496). Tócalas para copiarlas.',
+          ),
+          const SizedBox(height: 14),
+          const _HelpStep(
+            number: '4',
+            color: AppTheme.green,
+            text: 'Pega la latitud y longitud en los campos correspondientes.',
+          ),
+          const SizedBox(height: 24),
+          Container(
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceBlue,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            padding: const EdgeInsets.all(14),
+            child: const Row(
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  size: 18,
+                  color: AppTheme.electricSapphire,
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Si no tienes las coordenadas, las de Nuevo Laredo (27.4779, -99.5496) se cargan por defecto.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.muted,
+                      fontWeight: FontWeight.w600,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(46),
+            ),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HelpStep extends StatelessWidget {
+  const _HelpStep({
+    required this.number,
+    required this.color,
+    required this.text,
+  });
+
+  final String number;
+  final Color color;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              number,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w900,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppTheme.ink,
+              fontWeight: FontWeight.w600,
+              height: 1.5,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Widgets compartidos (Search + Manual)
 // ──────────────────────────────────────────────────────────────────────────────
 
 class _NetworkBadge extends StatelessWidget {
