@@ -509,13 +509,12 @@ class _ManualTab extends ConsumerStatefulWidget {
 }
 
 class _ManualTabState extends ConsumerState<_ManualTab> {
-  // Coordenadas por defecto: centro de Nuevo Laredo, Tamaulipas.
-  //
-  // FIX: los controllers NO se inicializan como field-initializers porque el DDC
-  // (compilador web de Dart) puede pasar el double crudo a TextEditingController
-  // sin llamar toString(), causando TypeError. Se inicializan en initState().
-  static const double _defLat = 27.4779;
-  static const double _defLng = -99.5496;
+  // FIX DEFINITIVO: se usan String literals, no double.
+  // Con const double en DDC (compilador web) el valor crudo -99.5496 llegaba a
+  // TextEditingController sin pasar por toString(), causando TypeError.
+  // Con const String no hay ninguna conversión: el valor ya es String.
+  static const String _defLat = '27.4779';
+  static const String _defLng = '-99.5496';
 
   final _formKey = GlobalKey<FormState>();
 
@@ -532,18 +531,14 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
   @override
   void initState() {
     super.initState();
-    _urlCtrl = TextEditingController();
+    _urlCtrl  = TextEditingController();
     _nameCtrl = TextEditingController();
     _cityCtrl = TextEditingController(text: 'Nuevo Laredo');
-    // toStringAsFixed(4) produce '27.4779' / '-99.5496' (String, nunca double).
-    _latCtrl = TextEditingController(text: _defLat.toStringAsFixed(4));
-    _lngCtrl = TextEditingController(text: _defLng.toStringAsFixed(4));
+    _latCtrl  = TextEditingController(text: _defLat); // String literal directo
+    _lngCtrl  = TextEditingController(text: _defLng); // String literal directo
     _noteCtrl = TextEditingController();
-
-    // Dispara rebuild para el preview en vivo.
-    _nameCtrl.addListener(() => setState(() {}));
-    _cityCtrl.addListener(() => setState(() {}));
-    _urlCtrl.addListener(() => setState(() {}));
+    // SIN addListener: el preview usa ValueListenableBuilder para no disparar
+    // un setState completo en cada tecla (que era lo que desencadenaba el error).
   }
 
   @override
@@ -561,10 +556,6 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
 
   @override
   Widget build(BuildContext context) {
-    final name = _nameCtrl.text.trim();
-    final city = _cityCtrl.text.trim();
-    final network = _detectSourceNetwork(_urlCtrl.text);
-
     return Form(
       key: _formKey,
       child: ListView(
@@ -574,18 +565,34 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
           const _ManualHintBanner(),
           const SizedBox(height: 24),
 
-          // ── Preview en vivo (aparece cuando hay nombre)
-          AnimatedSize(
-            duration: const Duration(milliseconds: 260),
-            curve: Curves.easeOutCubic,
-            child: name.isNotEmpty
-                ? _PlacePreviewCard(
-                    name: name,
-                    city: city.isNotEmpty ? city : 'Sin ciudad',
-                  )
-                : const SizedBox.shrink(),
+          // ── Preview en vivo: ValueListenableBuilder evita setState completo.
+          // Antes los addListener disparaban un rebuild de todo _ManualTabState
+          // en cada tecla, lo que re-evaluaba la const double y causaba el TypeError.
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _nameCtrl,
+            builder: (_ , nameVal, _) {
+              return ValueListenableBuilder<TextEditingValue>(
+                valueListenable: _cityCtrl,
+                builder: (_ , cityVal, _) {
+                  final name = nameVal.text.trim();
+                  final city = cityVal.text.trim();
+                  return AnimatedSize(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOutCubic,
+                    child: name.isNotEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.only(bottom: 24),
+                            child: _PlacePreviewCard(
+                              name: name,
+                              city: city.isNotEmpty ? city : 'Sin ciudad',
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  );
+                },
+              );
+            },
           ),
-          if (name.isNotEmpty) const SizedBox(height: 24),
 
           // ── El lugar
           _Section(
@@ -634,10 +641,7 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
               icon: const Icon(Icons.help_outline_rounded, size: 15),
               label: const Text('¿Cómo obtenerlas?'),
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 textStyle: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -684,33 +688,39 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
           ),
           const SizedBox(height: 20),
 
-          // ── Origen (opcional)
-          _Section(
-            icon: Icons.link_rounded,
-            label: 'Origen',
-            color: AppTheme.warm,
-            children: [
-              TextFormField(
-                controller: _urlCtrl,
-                keyboardType: TextInputType.url,
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
-                  labelText: 'Enlace donde lo viste (opcional)',
-                  hintText: 'https://...',
-                  prefixIcon: const Icon(Icons.link_rounded),
-                  suffixIcon: network != 'manual'
-                      ? Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: Center(
-                            widthFactor: 1,
-                            child: _NetworkBadge(network: network),
-                          ),
-                        )
-                      : null,
-                ),
-                validator: _validateUrl,
-              ),
-            ],
+          // ── Origen: ValueListenableBuilder para el badge de red (sin setState).
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _urlCtrl,
+            builder: (_ , urlVal, _) {
+              final network = _detectSourceNetwork(urlVal.text);
+              return _Section(
+                icon: Icons.link_rounded,
+                label: 'Origen',
+                color: AppTheme.warm,
+                children: [
+                  TextFormField(
+                    controller: _urlCtrl,
+                    keyboardType: TextInputType.url,
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: 'Enlace donde lo viste (opcional)',
+                      hintText: 'https://...',
+                      prefixIcon: const Icon(Icons.link_rounded),
+                      suffixIcon: network != 'manual'
+                          ? Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Center(
+                                widthFactor: 1,
+                                child: _NetworkBadge(network: network),
+                              ),
+                            )
+                          : null,
+                    ),
+                    validator: _validateUrl,
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 20),
 
@@ -743,11 +753,17 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
           ),
           const SizedBox(height: 28),
 
-          // ── Botón guardar con gradient
-          _SaveButton(
-            isSaving: _isSaving,
-            label: name.isNotEmpty ? 'Guardar "$name"' : 'Guardar lugar',
-            onTap: _submit,
+          // ── Botón guardar: ValueListenableBuilder para el label con el nombre.
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _nameCtrl,
+            builder: (_ , nameVal, _) {
+              final name = nameVal.text.trim();
+              return _SaveButton(
+                isSaving: _isSaving,
+                label: name.isNotEmpty ? 'Guardar "$name"' : 'Guardar lugar',
+                onTap: _submit,
+              );
+            },
           ),
         ],
       ),
@@ -799,8 +815,8 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
     _urlCtrl.clear();
     _nameCtrl.clear();
     _cityCtrl.text = 'Nuevo Laredo';
-    _latCtrl.text = _defLat.toStringAsFixed(4);
-    _lngCtrl.text = _defLng.toStringAsFixed(4);
+    _latCtrl.text = _defLat; // String literal directo, sin conversión
+    _lngCtrl.text = _defLng; // String literal directo, sin conversión
     _noteCtrl.clear();
     setState(() => _visibility = 'private');
   }
