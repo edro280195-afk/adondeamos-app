@@ -1,0 +1,39 @@
+# Archivos generados por Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+*.g.dart
+
+# Archivos de plataformas específicas generados automáticamente
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/google-services.json
+ios/.symlinks/
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/Generated.xcconfig
+ios/Pods/
+ios/Podfile.lock
+*.xcworkspace/xcuserdata/
+
+# IDEs y editores
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Secretos y configuración local
+.env
+.env.*
+secrets.dart
+google-services.json
+GoogleService-Info.plist
+.codex-run/
