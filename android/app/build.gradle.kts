@@ -13,29 +13,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    // -------------------------------------------------------------------------
-    // Carga de keystore desde key.properties
-    // -------------------------------------------------------------------------
-    def keystorePropertiesFile = rootProject.file("key.properties")
-    def keystoreProperties = new Properties()
-    def hasKeystore = keystorePropertiesFile.exists()
-    if (hasKeystore) {
-        keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-    }
-
-    signingConfigs {
-        if (hasKeystore) {
-            release {
-                keyAlias = keystoreProperties['keyAlias']
-                keyPassword = keystoreProperties['keyPassword']
-                storeFile = keystoreProperties['storeFile'] != null
-                    ? file(keystoreProperties['storeFile'])
-                    : null
-                storePassword = keystoreProperties['storePassword']
-            }
-        }
-    }
-
     defaultConfig {
         applicationId = "com.adondeamos.app"
         minSdk = flutter.minSdkVersion
@@ -46,9 +23,9 @@ android {
 
     buildTypes {
         release {
-            signingConfig = hasKeystore
-                ? signingConfigs.release
-                : signingConfigs.getByName("debug")
+            // TODO: Configurar firma real con key.properties para Google Play.
+            //       Para pruebas y sideload, debug signing funciona.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
