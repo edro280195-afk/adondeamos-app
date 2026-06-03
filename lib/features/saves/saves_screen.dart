@@ -1,11 +1,16 @@
 import 'package:adondeamos/app/app_theme.dart';
 import 'package:adondeamos/core/animations/shimmer_box.dart';
+import 'package:adondeamos/core/api/api_providers.dart';
+import 'package:adondeamos/core/api/http_client.dart';
+import 'package:adondeamos/features/auth/auth_controller.dart';
+import 'package:adondeamos/features/places/place_models.dart';
 import 'package:adondeamos/features/saves/save_models.dart';
 import 'package:adondeamos/features/saves/saves_controller.dart';
 import 'package:adondeamos/shared/widgets/empty_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 class SavesScreen extends ConsumerStatefulWidget {
   const SavesScreen({super.key});
@@ -417,33 +422,250 @@ class _ErrorState extends StatelessWidget {
 // Pantalla de detalle
 // ──────────────────────────────────────────────────────────────────────────────
 
-class SaveDetailScreen extends ConsumerWidget {
+class SaveDetailScreen extends ConsumerStatefulWidget {
   const SaveDetailScreen({super.key, required this.save});
 
   final PlaceSave save;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SaveDetailScreen> createState() => _SaveDetailScreenState();
+}
+
+class _SaveDetailScreenState extends ConsumerState<SaveDetailScreen> {
+  // URL de portada local: se actualiza al subir/borrar foto sin relanzar la pantalla.
+  String? _localThumbnailUrl;
+  bool _thumbnailInitialized = false;
+
+  // Foto de Google cargada bajo demanda (solo para origin=google).
+  PlaceResolveResult? _googleDetails;
+  bool _loadingGoogle = false;
+
+  bool _uploadingPhoto = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _localThumbnailUrl = widget.save.thumbnailUrl;
+    _thumbnailInitialized = true;
+
+    if (widget.save.place.isGoogle &&
+        widget.save.thumbnailUrl == null &&
+        widget.save.place.googlePlaceId != null) {
+      _loadGoogleDetails();
+    }
+  }
+
+  Future<void> _loadGoogleDetails() async {
+    if (!mounted) return;
+    setState(() => _loadingGoogle = true);
+    try {
+      final token = ref.read(authControllerProvider).asData?.value.token;
+      if (token == null) return;
+      final result = await ref.read(placesApiProvider).resolvePlace(
+        token: token,
+        googlePlaceId: widget.save.place.googlePlaceId!,
+      );
+      if (mounted) setState(() => _googleDetails = result);
+    } catch (_) {
+      // No bloquear el detalle si falla la foto.
+    } finally {
+      if (mounted) setState(() => _loadingGoogle = false);
+    }
+  }
+
+  String get _effectiveThumbnailUrl {
+    if (_thumbnailInitialized && _localThumbnailUrl != null) {
+      return _localThumbnailUrl!;
+    }
+    return widget.save.thumbnailUrl ?? '';
+  }
+
+  bool get _hasPhoto => _effectiveThumbnailUrl.isNotEmpty;
+
+  String? get _googlePhotoUrl =>
+      !_hasPhoto ? _googleDetails?.google.photoUrl : null;
+
+  String? get _googlePhotoAttribution =>
+      !_hasPhoto ? _googleDetails?.google.photoAttribution : null;
+
+  Future<void> _pickAndUpload() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1600,
+      maxHeight: 1600,
+      imageQuality: 85,
+    );
+    if (picked == null || !mounted) return;
+
+    setState(() => _uploadingPhoto = true);
+    try {
+      final token = ref.read(authControllerProvider).asData?.value.token;
+      if (token == null) throw const ApiException('Sin sesión activa.');
+
+      final bytes = await picked.readAsBytes();
+      final mime = picked.mimeType ?? 'image/jpeg';
+      final url = await ref.read(savesApiProvider).uploadPhoto(
+        token: token,
+        saveId: widget.save.id,
+        fileBytes: bytes,
+        contentType: mime,
+        fileName: picked.name,
+      );
+
+      if (mounted) {
+        setState(() => _localThumbnailUrl = url);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Foto actualizada.')));
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
+
+  Future<void> _deletePhoto() async {
+    final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Quitar foto'),
+            content: const Text('¿Seguro que quieres quitar la foto de portada?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: AppTheme.error),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Quitar'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!ok || !mounted) return;
+
+    setState(() => _uploadingPhoto = true);
+    try {
+      final token = ref.read(authControllerProvider).asData?.value.token;
+      if (token == null) throw const ApiException('Sin sesión activa.');
+
+      await ref.read(savesApiProvider).deletePhoto(
+        token: token,
+        saveId: widget.save.id,
+      );
+
+      if (mounted) {
+        setState(() => _localThumbnailUrl = null);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Foto eliminada.')));
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final save = widget.save;
     final placeName = save.place.displayName;
+    final heroUrl = _hasPhoto ? _effectiveThumbnailUrl : _googlePhotoUrl;
+    final attribution = _googlePhotoAttribution;
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             pinned: true,
-            expandedHeight: 240,
+            expandedHeight: 260,
             flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(gradient: AppTheme.deepBrandGradient),
-                child: const Center(
-                  child: Icon(
-                    Icons.place_rounded,
-                    size: 72,
-                    color: Colors.white38,
-                  ),
-                ),
+              background: _HeroBackground(
+                photoUrl: heroUrl,
+                isLoading: _loadingGoogle,
+                child: attribution != null
+                    ? Positioned(
+                        bottom: 8,
+                        right: 12,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Colors.black45,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            child: Text(
+                              '© $attribution · Google',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : null,
               ),
             ),
+            actions: [
+              if (_uploadingPhoto)
+                const Padding(
+                  padding: EdgeInsets.all(14),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                )
+              else
+                PopupMenuButton<_PhotoAction>(
+                  icon: const Icon(Icons.photo_camera_rounded),
+                  tooltip: 'Foto de portada',
+                  onSelected: (action) {
+                    if (action == _PhotoAction.upload) _pickAndUpload();
+                    if (action == _PhotoAction.delete) _deletePhoto();
+                  },
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: _PhotoAction.upload,
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.upload_rounded),
+                        title: Text('Subir foto'),
+                      ),
+                    ),
+                    if (_hasPhoto)
+                      const PopupMenuItem(
+                        value: _PhotoAction.delete,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.delete_outline_rounded),
+                          title: Text('Quitar foto'),
+                        ),
+                      ),
+                  ],
+                ),
+            ],
           ),
           SliverToBoxAdapter(
             child: Padding(
@@ -543,6 +765,53 @@ class SaveDetailScreen extends ConsumerWidget {
     'youtube' => 'Visto en YouTube',
     _ => 'Guardado manualmente',
   };
+}
+
+enum _PhotoAction { upload, delete }
+
+/// Hero de la pantalla de detalle: foto real, shimmer de carga o gradiente de fallback.
+class _HeroBackground extends StatelessWidget {
+  const _HeroBackground({
+    required this.photoUrl,
+    required this.isLoading,
+    this.child,
+  });
+
+  final String? photoUrl;
+  final bool isLoading;
+  final Widget? child; // atribución overlay
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const ShimmerBox(height: 260, borderRadius: 0);
+    }
+
+    if (photoUrl != null && photoUrl!.isNotEmpty) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.network(
+            photoUrl!,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => _fallback(),
+          ),
+          ?child,
+        ],
+      );
+    }
+
+    return _fallback();
+  }
+
+  Widget _fallback() {
+    return Container(
+      decoration: BoxDecoration(gradient: AppTheme.deepBrandGradient),
+      child: const Center(
+        child: Icon(Icons.place_rounded, size: 72, color: Colors.white38),
+      ),
+    );
+  }
 }
 
 class _InfoLine extends StatelessWidget {
