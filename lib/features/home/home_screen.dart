@@ -5,7 +5,9 @@ import 'package:adondeamos/core/animations/shimmer_box.dart';
 import 'package:adondeamos/features/auth/auth_controller.dart';
 import 'package:adondeamos/features/decisions/decisions_controller.dart';
 import 'package:adondeamos/features/decisions/decisions_screen.dart';
+import 'package:adondeamos/features/saves/save_models.dart';
 import 'package:adondeamos/features/saves/saves_controller.dart';
+import 'package:adondeamos/features/saves/saves_screen.dart';
 import 'package:adondeamos/shared/widgets/section_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -96,16 +98,9 @@ class HomeScreen extends ConsumerWidget {
                   return Column(
                     children: List.generate(recent.length, (i) {
                       final save = recent[i];
-                      final name = save.place.displayName;
-                      final city = save.place.city ?? '';
                       return AnimatedListItem(
                         index: i + 4,
-                        child: _RecentSaveTile(
-                          name: name,
-                          city: city,
-                          network: save.sourceNetwork,
-                          createdAt: save.createdAt,
-                        ),
+                        child: _RecentSaveTile(save: save),
                       );
                     }),
                   );
@@ -390,74 +385,58 @@ class _EmptyCallToAction extends StatelessWidget {
 }
 
 class _RecentSaveTile extends StatelessWidget {
-  const _RecentSaveTile({
-    required this.name,
-    required this.city,
-    required this.network,
-    required this.createdAt,
-  });
+  const _RecentSaveTile({required this.save});
 
-  final String name;
-  final String city;
-  final String network;
-  final String createdAt;
+  final PlaceSave save;
 
   @override
   Widget build(BuildContext context) {
+    final name = save.place.displayName;
+    final city = save.place.city ?? '';
+    final network = save.sourceNetwork;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white,
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
           borderRadius: BorderRadius.circular(16),
-        ),
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 4,
-          ),
-          leading: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppTheme.violetSoft,
-              borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            HapticFeedback.lightImpact();
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => SaveDetailScreen(save: save),
+              ),
+            );
+          },
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 4,
             ),
-            child: Icon(
-              _networkIcon(network),
-              color: AppTheme.violet,
-              size: 22,
+            leading: _SaveLeading(save: save),
+            title: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
             ),
-          ),
-          title: Text(
-            name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
-          ),
-          subtitle: Text(
-            city.isNotEmpty
-                ? '$city · ${_networkLabel(network)}'
-                : _networkLabel(network),
-            style: const TextStyle(fontSize: 12),
-          ),
-          trailing: const Icon(
-            Icons.chevron_right_rounded,
-            color: AppTheme.muted,
+            subtitle: Text(
+              city.isNotEmpty
+                  ? '$city · ${_networkLabel(network)}'
+                  : _networkLabel(network),
+              style: const TextStyle(fontSize: 12),
+            ),
+            trailing: const Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.muted,
+            ),
           ),
         ),
       ),
     );
   }
-
-  IconData _networkIcon(String n) => switch (n) {
-    'tiktok' => Icons.music_note_rounded,
-    'instagram' => Icons.camera_alt_rounded,
-    'whatsapp' => Icons.chat_rounded,
-    'googleMaps' => Icons.map_rounded,
-    'youtube' => Icons.play_circle_rounded,
-    _ => Icons.place_rounded,
-  };
 
   String _networkLabel(String n) => switch (n) {
     'tiktok' => 'TikTok',
@@ -467,6 +446,55 @@ class _RecentSaveTile extends StatelessWidget {
     'googleMaps' => 'Google Maps',
     'youtube' => 'YouTube',
     _ => 'Manual',
+  };
+}
+
+class _SaveLeading extends StatelessWidget {
+  const _SaveLeading({required this.save});
+
+  final PlaceSave save;
+
+  @override
+  Widget build(BuildContext context) {
+    final thumbUrl = save.thumbnailUrl;
+    if (thumbUrl != null && thumbUrl.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.network(
+          thumbUrl,
+          width: 44,
+          height: 44,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _networkIcon(save.sourceNetwork),
+        ),
+      );
+    }
+    return _networkIcon(save.sourceNetwork);
+  }
+
+  Widget _networkIcon(String n) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: AppTheme.violetSoft,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(
+        _icon(n),
+        color: AppTheme.violet,
+        size: 22,
+      ),
+    );
+  }
+
+  IconData _icon(String n) => switch (n) {
+    'tiktok' => Icons.music_note_rounded,
+    'instagram' => Icons.camera_alt_rounded,
+    'whatsapp' => Icons.chat_rounded,
+    'googleMaps' => Icons.map_rounded,
+    'youtube' => Icons.play_circle_rounded,
+    _ => Icons.place_rounded,
   };
 }
 

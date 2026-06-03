@@ -297,7 +297,10 @@ class _AddOptionsScreenState extends ConsumerState<_AddOptionsScreen> {
         title: const Text('Agregar opciones'),
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
-          onPressed: () => ref.read(activeDecisionProvider.notifier).clear(),
+          onPressed: () {
+            ref.read(activeDecisionProvider.notifier).clear();
+            Navigator.of(context).pop();
+          },
         ),
       ),
       body: Padding(
@@ -379,7 +382,10 @@ class _VotingScreen extends ConsumerWidget {
         title: const Text('Votar'),
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
-          onPressed: () => ref.read(activeDecisionProvider.notifier).clear(),
+          onPressed: () {
+            ref.read(activeDecisionProvider.notifier).clear();
+            Navigator.of(context).pop();
+          },
         ),
         actions: [
           IconButton(
