@@ -1,3 +1,4 @@
+import 'package:adondeamos/app/adondeamos_app.dart';
 import 'package:adondeamos/app/app_theme.dart';
 import 'package:adondeamos/core/animations/animation_constants.dart';
 import 'package:adondeamos/features/capture/capture_screen.dart';
@@ -7,15 +8,16 @@ import 'package:adondeamos/features/saves/saves_screen.dart';
 import 'package:adondeamos/shared/widgets/pulse_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AppShell extends StatefulWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
 
   @override
-  State<AppShell> createState() => _AppShellState();
+  ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends ConsumerState<AppShell> {
   int _index = 0;
   int _previousIndex = 0;
 
@@ -37,6 +39,13 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    // Cuando llega una URL compartida desde otra app, abre la tab Guardar.
+    ref.listen<String?>(pendingSharedUrlProvider, (_, next) {
+      if (next != null && next.isNotEmpty) {
+        _onTabChanged(1);
+      }
+    });
+
     return Scaffold(
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 220),

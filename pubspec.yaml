@@ -44,6 +44,9 @@ dependencies:
   flutter_map: ^8.3.0
   latlong2: ^0.9.1
   flutter_map_dragmarker: ^8.0.3
+  image_picker: ^1.1.2
+  receive_sharing_intent: ^1.4.5
+  http_parser: ^4.1.0
 
 dev_dependencies:
   flutter_test:
