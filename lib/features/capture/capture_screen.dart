@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:adondeamos/app/adondeamos_app.dart';
 import 'package:adondeamos/app/app_theme.dart';
 import 'package:adondeamos/core/api/api_providers.dart';
 import 'package:adondeamos/core/api/http_client.dart';
@@ -28,7 +29,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 2, vsync: this);
+    _tabs = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -46,13 +47,14 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           controller: _tabs,
           tabs: const [
             Tab(icon: Icon(Icons.search_rounded), text: 'Buscar'),
+            Tab(icon: Icon(Icons.link_rounded), text: 'Enlace'),
             Tab(icon: Icon(Icons.edit_location_alt_rounded), text: 'Manual'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabs,
-        children: const [_SearchTab(), _ManualTab()],
+        children: const [_SearchTab(), _LinkTab(), _ManualTab()],
       ),
     );
   }
@@ -401,6 +403,7 @@ class _ResolvedPlaceCard extends StatelessWidget {
     final google = result.google;
     final hasAddress = google.formattedAddress != null;
     final hasCoords = google.latitude != null && google.longitude != null;
+    final hasPhoto = google.photoUrl != null && google.photoUrl!.isNotEmpty;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -414,65 +417,112 @@ class _ResolvedPlaceCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.check_circle_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Lugar encontrado',
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
-                ),
-                const Spacer(),
-                Icon(
-                  Icons.location_on_rounded,
-                  color: Colors.white.withValues(alpha: 0.5),
-                  size: 16,
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              google.displayName ?? 'Lugar de Google',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Foto del lugar si está disponible (bajo demanda, no se persiste).
+          if (hasPhoto)
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
               ),
-            ),
-            if (hasAddress) ...[
-              const SizedBox(height: 4),
-              Text(
-                google.formattedAddress!,
-                style: const TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-            ],
-            if (hasCoords) ...[
-              const SizedBox(height: 6),
-              Row(
+              child: Stack(
                 children: [
-                  _Tag(
-                    label: '${google.latitude!.toStringAsFixed(4)}°N',
-                    color: Colors.white24,
+                  Image.network(
+                    google.photoUrl!,
+                    height: 160,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
                   ),
-                  const SizedBox(width: 8),
-                  _Tag(
-                    label: '${google.longitude!.toStringAsFixed(4)}°W',
-                    color: Colors.white24,
-                  ),
+                  if (google.photoAttribution != null)
+                    Positioned(
+                      bottom: 6,
+                      right: 10,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.black45,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
+                          child: Text(
+                            '© ${google.photoAttribution} · Google',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
-            ],
-          ],
-        ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Lugar encontrado',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      Icons.location_on_rounded,
+                      color: Colors.white.withValues(alpha: 0.5),
+                      size: 16,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  google.displayName ?? 'Lugar de Google',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                if (hasAddress) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    google.formattedAddress!,
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ],
+                if (hasCoords) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      _Tag(
+                        label: '${google.latitude!.toStringAsFixed(4)}°N',
+                        color: Colors.white24,
+                      ),
+                      const SizedBox(width: 8),
+                      _Tag(
+                        label: '${google.longitude!.toStringAsFixed(4)}°W',
+                        color: Colors.white24,
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -498,6 +548,342 @@ class _Tag extends StatelessWidget {
           style: const TextStyle(color: Colors.white70, fontSize: 11),
         ),
       ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// TAB ENLACE — POST /places/resolve-link
+// ──────────────────────────────────────────────────────────────────────────────
+
+class _LinkTab extends ConsumerStatefulWidget {
+  const _LinkTab();
+
+  @override
+  ConsumerState<_LinkTab> createState() => _LinkTabState();
+}
+
+class _LinkTabState extends ConsumerState<_LinkTab> {
+  final _urlController = TextEditingController();
+  final _noteController = TextEditingController();
+
+  ResolveLinkResult? _result;
+  bool _isResolving = false;
+  bool _isSaving = false;
+  String? _errorMessage;
+  String _visibility = 'private';
+
+  @override
+  void initState() {
+    super.initState();
+    // Procesa URL compartida desde otra app (share-target) en el primer frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPendingShare());
+  }
+
+  void _checkPendingShare() {
+    final pending = ref.read(pendingSharedUrlProvider);
+    if (pending != null && pending.isNotEmpty) {
+      _urlController.text = pending;
+      ref.read(pendingSharedUrlProvider.notifier).clear();
+      _resolve();
+    }
+  }
+
+  @override
+  void dispose() {
+    _urlController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  String? get _token => ref.read(authControllerProvider).asData?.value.token;
+
+  Future<void> _resolve() async {
+    final url = _urlController.text.trim();
+    if (url.isEmpty) {
+      setState(() => _errorMessage = 'Pega o escribe el enlace primero.');
+      return;
+    }
+    final token = _token;
+    if (token == null) return;
+
+    setState(() {
+      _isResolving = true;
+      _errorMessage = null;
+      _result = null;
+    });
+
+    try {
+      final result = await ref
+          .read(placesApiProvider)
+          .resolveLink(token: token, url: url);
+      if (mounted) setState(() => _result = result);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _errorMessage = e.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _errorMessage = 'No se pudo resolver el enlace.');
+      }
+    } finally {
+      if (mounted) setState(() => _isResolving = false);
+    }
+  }
+
+  Future<void> _save() async {
+    HapticFeedback.mediumImpact();
+    final result = _result;
+    final token = _token;
+    if (result == null || token == null) return;
+
+    setState(() => _isSaving = true);
+    try {
+      if (result.resolved && result.place != null) {
+        // Lugar de Maps resuelto: guardar directamente.
+        await ref.read(savesApiProvider).createSave(
+          token: token,
+          placeId: result.place!.place.id,
+          sourceNetwork: 'googleMaps',
+          sourceUrl: _urlController.text.trim(),
+          note: _emptyToNull(_noteController.text),
+          visibility: _visibility,
+        );
+      } else {
+        // No se resolvió: el usuario elige el lugar manualmente.
+        // Por ahora solo confirmamos que el enlace fue registrado.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Enlace guardado. Elige el lugar en la pestaña Buscar o Manual.',
+            ),
+          ),
+        );
+        _reset();
+        return;
+      }
+      ref.invalidate(pendingSavesProvider);
+      _reset();
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('¡Lugar guardado!')));
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  void _reset() {
+    setState(() {
+      _result = null;
+      _errorMessage = null;
+      _visibility = 'private';
+    });
+    _urlController.clear();
+    _noteController.clear();
+  }
+
+  static String? _emptyToNull(String value) {
+    final t = value.trim();
+    return t.isEmpty ? null : t;
+  }
+
+  String _networkLabel(String? network) => switch (network) {
+    'tiktok' => 'TikTok',
+    'instagram' => 'Instagram',
+    'facebook' => 'Facebook',
+    'whatsapp' => 'WhatsApp',
+    'googleMaps' => 'Google Maps',
+    'youtube' => 'YouTube',
+    _ => 'Otro',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final result = _result;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 20, 18, 40),
+      children: [
+        // ── Campo de URL
+        TextField(
+          controller: _urlController,
+          keyboardType: TextInputType.url,
+          textInputAction: TextInputAction.go,
+          onSubmitted: (_) => _resolve(),
+          decoration: InputDecoration(
+            labelText: 'Pega el enlace aquí',
+            hintText: 'https://maps.app.goo.gl/...',
+            prefixIcon: const Icon(Icons.link_rounded),
+            suffixIcon: _isResolving
+                ? const Padding(
+                    padding: EdgeInsets.all(14),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : _result != null
+                ? IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: _reset,
+                  )
+                : null,
+          ),
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: _isResolving ? null : _resolve,
+          icon: const Icon(Icons.search_rounded),
+          label: const Text('Resolver enlace'),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(48),
+          ),
+        ),
+        if (_errorMessage != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _errorMessage!,
+            style: const TextStyle(color: AppTheme.error, fontSize: 13),
+          ),
+        ],
+
+        // ── Lugar resuelto de Maps
+        if (result != null && result.resolved && result.place != null) ...[
+          const SizedBox(height: 20),
+          _ResolvedPlaceCard(result: result.place!),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _noteController,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'Nota (opcional)',
+              prefixIcon: Icon(Icons.notes_rounded),
+              alignLabelWithHint: true,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SegmentedButton<String>(
+            selected: {_visibility},
+            onSelectionChanged: (v) => setState(() => _visibility = v.single),
+            segments: const [
+              ButtonSegment(
+                value: 'private',
+                icon: Icon(Icons.lock_rounded),
+                label: Text('Privado'),
+              ),
+              ButtonSegment(
+                value: 'group',
+                icon: Icon(Icons.groups_rounded),
+                label: Text('Grupo'),
+              ),
+              ButtonSegment(
+                value: 'public',
+                icon: Icon(Icons.public_rounded),
+                label: Text('Público'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: _isSaving ? null : _save,
+            icon: _isSaving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.bookmark_add_rounded),
+            label: const Text('Guardar lugar'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
+          ),
+        ],
+
+        // ── Enlace de red no-Maps: guiar al usuario a buscar/manual
+        if (result != null && !result.resolved) ...[
+          const SizedBox(height: 20),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppTheme.warmSoft,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: AppTheme.warm.withValues(alpha: 0.4),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        color: AppTheme.warm,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Enlace de ${_networkLabel(result.sourceNetwork)} detectado',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          color: AppTheme.ink,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Extracción automática desde esta red aún no está disponible. '
+                    'Busca el lugar manualmente usando las pestañas Buscar o Manual, '
+                    'y pega el enlace en el campo correspondiente.',
+                    style: TextStyle(color: AppTheme.muted, fontSize: 13, height: 1.5),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+
+        // ── Estado vacío
+        if (result == null && !_isResolving) ...[
+          const SizedBox(height: 48),
+          const Center(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.travel_explore_rounded,
+                  size: 64,
+                  color: AppTheme.violetSoft,
+                ),
+                SizedBox(height: 12),
+                Text(
+                  'Pega un enlace de Maps',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'También funciona con enlaces cortos\nmaps.app.goo.gl y similares.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppTheme.muted),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
