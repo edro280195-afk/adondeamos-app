@@ -28,18 +28,15 @@ class _PressFeedbackState extends State<PressFeedback>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _scaleAnim;
-  bool _isPressed = false;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: Anim.micro,
-    );
-    _scaleAnim = Tween<double>(begin: 1.0, end: widget.scale).animate(
-      CurvedAnimation(parent: _ctrl, curve: Anim.enter),
-    );
+    _ctrl = AnimationController(vsync: this, duration: Anim.micro);
+    _scaleAnim = Tween<double>(
+      begin: 1.0,
+      end: widget.scale,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Anim.enter));
   }
 
   @override
@@ -49,20 +46,17 @@ class _PressFeedbackState extends State<PressFeedback>
   }
 
   void _onTapDown(TapDownDetails _) {
-    _isPressed = true;
     _ctrl.forward();
     if (widget.haptic) HapticFeedback.lightImpact();
   }
 
   void _onTapUp(TapUpDetails _) {
     _ctrl.reverse().then((_) {
-      _isPressed = false;
       widget.onTap?.call();
     });
   }
 
   void _onTapCancel() {
-    _isPressed = false;
     _ctrl.reverse();
   }
 
@@ -80,10 +74,8 @@ class _PressFeedbackState extends State<PressFeedback>
           : null,
       child: AnimatedBuilder(
         animation: _scaleAnim,
-        builder: (context, child) => Transform.scale(
-          scale: _scaleAnim.value,
-          child: child,
-        ),
+        builder: (context, child) =>
+            Transform.scale(scale: _scaleAnim.value, child: child),
         child: widget.child,
       ),
     );

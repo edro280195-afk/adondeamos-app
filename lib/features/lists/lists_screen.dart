@@ -34,9 +34,16 @@ class ListsScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off_rounded, size: 56, color: AppTheme.muted),
+              const Icon(
+                Icons.cloud_off_rounded,
+                size: 56,
+                color: AppTheme.muted,
+              ),
               const SizedBox(height: 12),
-              Text(error.toString(), style: const TextStyle(color: AppTheme.muted)),
+              Text(
+                error.toString(),
+                style: const TextStyle(color: AppTheme.muted),
+              ),
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: () => ref.invalidate(listsProvider),
@@ -66,7 +73,9 @@ class ListsScreen extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
           child: Container(
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
@@ -99,7 +108,9 @@ class ListsScreen extends ConsumerWidget {
                     '¿Lista grupal?',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
-                  subtitle: const Text('Visible para todos los miembros del grupo.'),
+                  subtitle: const Text(
+                    'Visible para todos los miembros del grupo.',
+                  ),
                   value: isGroup,
                   onChanged: (v) => setSheetState(() => isGroup = v),
                 ),
@@ -113,15 +124,17 @@ class ListsScreen extends ConsumerWidget {
                       HapticFeedback.lightImpact();
                       Navigator.pop(ctx);
                       try {
-                        await ref.read(listsProvider.notifier).createList(
+                        await ref
+                            .read(listsProvider.notifier)
+                            .createList(
                               name: name,
                               visibility: isGroup ? 'group' : 'private',
                             );
                       } catch (e) {
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error: $e')),
-                          );
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
                         }
                       }
                     },
@@ -146,7 +159,7 @@ class _ListsLoading extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
       itemCount: 5,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (_, __) => const ShimmerCard(height: 72),
+      itemBuilder: (_, _) => const ShimmerCard(height: 72),
     );
   }
 }
@@ -199,20 +212,31 @@ class _ListTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
           ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 6,
+            ),
             leading: CircleAvatar(
-              backgroundColor: isGroup ? const Color(0xFFEDF7F2) : AppTheme.violetSoft,
+              backgroundColor: isGroup
+                  ? const Color(0xFFEDF7F2)
+                  : AppTheme.violetSoft,
               child: Icon(
                 isGroup ? Icons.groups_rounded : Icons.list_alt_rounded,
                 color: isGroup ? AppTheme.green : AppTheme.violet,
               ),
             ),
-            title: Text(list.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+            title: Text(
+              list.name,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
             subtitle: Text(
               isGroup ? 'Lista grupal' : 'Lista personal',
               style: const TextStyle(fontSize: 12),
             ),
-            trailing: const Icon(Icons.chevron_right_rounded, color: AppTheme.muted),
+            trailing: const Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.muted,
+            ),
           ),
         ),
       ),
@@ -233,7 +257,11 @@ class _EmptyLists extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.list_alt_rounded, size: 72, color: AppTheme.violetSoft),
+            const Icon(
+              Icons.list_alt_rounded,
+              size: 72,
+              color: AppTheme.violetSoft,
+            ),
             const SizedBox(height: 16),
             const Text(
               'Todavía no tienes listas',

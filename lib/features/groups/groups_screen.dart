@@ -36,7 +36,11 @@ class GroupsScreen extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.cloud_off_rounded, size: 56, color: AppTheme.muted),
+                const Icon(
+                  Icons.cloud_off_rounded,
+                  size: 56,
+                  color: AppTheme.muted,
+                ),
                 const SizedBox(height: 12),
                 Text(
                   error.toString(),
@@ -95,9 +99,9 @@ class GroupsScreen extends ConsumerWidget {
       await ref.read(groupsProvider.notifier).createGroup(trimmed);
     } catch (e) {
       if (ctx.mounted) {
-        ScaffoldMessenger.of(ctx).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          ctx,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -112,7 +116,7 @@ class _GroupsLoading extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       itemCount: 4,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (_, __) => const ShimmerCard(height: 72),
+      itemBuilder: (_, _) => const ShimmerCard(height: 72),
     );
   }
 }
@@ -164,7 +168,10 @@ class _GroupTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
           ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 6,
+            ),
             leading: CircleAvatar(
               backgroundColor: AppTheme.violetSoft,
               child: Text(
@@ -183,7 +190,10 @@ class _GroupTile extends StatelessWidget {
               isOwner ? 'Creador' : 'Miembro',
               style: const TextStyle(fontSize: 12),
             ),
-            trailing: const Icon(Icons.chevron_right_rounded, color: AppTheme.muted),
+            trailing: const Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.muted,
+            ),
           ),
         ),
       ),
@@ -204,7 +214,11 @@ class _EmptyGroups extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.groups_rounded, size: 72, color: AppTheme.violetSoft),
+            const Icon(
+              Icons.groups_rounded,
+              size: 72,
+              color: AppTheme.violetSoft,
+            ),
             const SizedBox(height: 16),
             const Text(
               'Todavía no tienes grupos',

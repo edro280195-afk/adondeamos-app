@@ -26,11 +26,18 @@ class InvitationsScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.mail_outline_rounded, size: 64, color: AppTheme.violetSoft),
+                    Icon(
+                      Icons.mail_outline_rounded,
+                      size: 64,
+                      color: AppTheme.violetSoft,
+                    ),
                     SizedBox(height: 16),
                     Text(
                       'Sin invitaciones pendientes',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                     SizedBox(height: 8),
                     Text(
@@ -48,7 +55,9 @@ class InvitationsScreen extends ConsumerWidget {
             itemCount: pending.length,
             itemBuilder: (_, index) {
               return Padding(
-                padding: EdgeInsets.only(bottom: index < pending.length - 1 ? 10 : 0),
+                padding: EdgeInsets.only(
+                  bottom: index < pending.length - 1 ? 10 : 0,
+                ),
                 child: _InvitationTile(invitation: pending[index]),
               );
             },
@@ -59,9 +68,16 @@ class InvitationsScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off_rounded, size: 56, color: AppTheme.muted),
+              const Icon(
+                Icons.cloud_off_rounded,
+                size: 56,
+                color: AppTheme.muted,
+              ),
               const SizedBox(height: 12),
-              Text(error.toString(), style: const TextStyle(color: AppTheme.muted)),
+              Text(
+                error.toString(),
+                style: const TextStyle(color: AppTheme.muted),
+              ),
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: () => ref.invalidate(invitationsProvider),
@@ -72,9 +88,9 @@ class InvitationsScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const GroupsScreen()),
-        ),
+        onPressed: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const GroupsScreen())),
         backgroundColor: AppTheme.violet,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.groups_rounded),
@@ -93,7 +109,7 @@ class _InvitationsLoading extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       itemCount: 3,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (_, __) => const ShimmerCard(height: 140),
+      itemBuilder: (_, _) => const ShimmerCard(height: 140),
     );
   }
 }
@@ -129,11 +145,17 @@ class _InvitationTile extends ConsumerWidget {
                     children: [
                       Text(
                         invitation.groupName,
-                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                        ),
                       ),
                       Text(
                         'Invitado por ${invitation.invitedBy}',
-                        style: const TextStyle(color: AppTheme.muted, fontSize: 13),
+                        style: const TextStyle(
+                          color: AppTheme.muted,
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ),
@@ -171,7 +193,11 @@ class _InvitationTile extends ConsumerWidget {
     );
   }
 
-  Future<void> _respond(BuildContext context, WidgetRef ref, bool accept) async {
+  Future<void> _respond(
+    BuildContext context,
+    WidgetRef ref,
+    bool accept,
+  ) async {
     HapticFeedback.mediumImpact();
     try {
       if (accept) {
@@ -186,9 +212,9 @@ class _InvitationTile extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }

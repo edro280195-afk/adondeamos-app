@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:adondeamos/app/app_theme.dart';
 import 'package:adondeamos/core/animations/animation_constants.dart';
 import 'package:adondeamos/core/animations/animated_list_item.dart';
@@ -95,10 +97,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 ),
               ),
               const SizedBox(height: 26),
-              AnimatedListItem(
-                index: 1,
-                child: const _LoginStoryPanel(),
-              ),
+              AnimatedListItem(index: 1, child: const _LoginStoryPanel()),
               const SizedBox(height: 22),
               AnimatedListItem(
                 index: 2,
@@ -141,7 +140,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     final password = _passwordController.text;
 
     if (_isRegister) {
-      await ref.read(authControllerProvider.notifier).register(
+      await ref
+          .read(authControllerProvider.notifier)
+          .register(
             name: name,
             username: username,
             email: email,
@@ -150,10 +151,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       return;
     }
 
-    await ref.read(authControllerProvider.notifier).login(
-          username: username,
-          password: password,
-        );
+    await ref
+        .read(authControllerProvider.notifier)
+        .login(username: username, password: password);
   }
 }
 
@@ -167,6 +167,7 @@ class _LoginStoryPanel extends StatefulWidget {
 class _LoginStoryPanelState extends State<_LoginStoryPanel>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
+  Timer? _startTimer;
 
   @override
   void initState() {
@@ -175,13 +176,14 @@ class _LoginStoryPanelState extends State<_LoginStoryPanel>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
-    Future.delayed(const Duration(milliseconds: 400), () {
+    _startTimer = Timer(const Duration(milliseconds: 400), () {
       if (mounted) _ctrl.forward();
     });
   }
 
   @override
   void dispose() {
+    _startTimer?.cancel();
     _ctrl.dispose();
     super.dispose();
   }
@@ -219,51 +221,67 @@ class _LoginStoryPanelState extends State<_LoginStoryPanel>
               child: AnimatedBuilder(
                 animation: _ctrl,
                 builder: (context, child) {
-                  return Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Positioned(
-                        left: lerpDouble(-20, 0, _ctrl.value),
-                        top: 10,
-                        child: Opacity(
-                          opacity: _ctrl.value.clamp(0.0, 1.0),
-                          child: const _RoutePoint(
-                            icon: Icons.smart_display_rounded,
-                            label: 'Reel',
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      const pointWidth = 72.0;
+                      final maxLeft = constraints.maxWidth - pointWidth;
+                      final centerLeft = maxLeft / 2;
+
+                      return Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Positioned(
+                            left: lerpDouble(-18, 0, _ctrl.value),
+                            top: 10,
+                            child: Opacity(
+                              opacity: _ctrl.value.clamp(0.0, 1.0),
+                              child: const _RoutePoint(
+                                icon: Icons.smart_display_rounded,
+                                label: 'Reel',
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      if (_ctrl.value > 0.2)
-                        Positioned.fill(
-                          child: Opacity(
-                            opacity: (_ctrl.value - 0.2).clamp(0.0, 1.0),
-                            child: const _RouteLine(),
+                          if (_ctrl.value > 0.2)
+                            Positioned.fill(
+                              child: Opacity(
+                                opacity: (_ctrl.value - 0.2).clamp(0.0, 1.0),
+                                child: const _RouteLine(),
+                              ),
+                            ),
+                          Positioned(
+                            left: lerpDouble(
+                              centerLeft + 34,
+                              centerLeft,
+                              _ctrl.value,
+                            ),
+                            top: 38,
+                            child: Opacity(
+                              opacity: (_ctrl.value - 0.3).clamp(0.0, 1.0),
+                              child: const _RoutePoint(
+                                icon: Icons.bookmark_rounded,
+                                label: 'Guardado',
+                                emphasized: true,
+                              ),
+                            ),
                           ),
-                        ),
-                      Positioned(
-                        left: lerpDouble(160, 126, _ctrl.value),
-                        top: 38,
-                        child: Opacity(
-                          opacity: (_ctrl.value - 0.3).clamp(0.0, 1.0),
-                          child: const _RoutePoint(
-                            icon: Icons.bookmark_rounded,
-                            label: 'Guardado',
-                            emphasized: true,
+                          Positioned(
+                            left: lerpDouble(
+                              constraints.maxWidth + 18,
+                              maxLeft,
+                              _ctrl.value,
+                            ),
+                            top: 10,
+                            child: Opacity(
+                              opacity: (_ctrl.value - 0.5).clamp(0.0, 1.0),
+                              child: const _RoutePoint(
+                                icon: Icons.how_to_vote_rounded,
+                                label: 'Match',
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      Positioned(
-                        right: lerpDouble(-20, 0, _ctrl.value),
-                        top: 6,
-                        child: Opacity(
-                          opacity: (_ctrl.value - 0.5).clamp(0.0, 1.0),
-                          child: const _RoutePoint(
-                            icon: Icons.how_to_vote_rounded,
-                            label: 'Match',
-                          ),
-                        ),
-                      ),
-                    ],
+                        ],
+                      );
+                    },
                   );
                 },
               ),
@@ -340,46 +358,53 @@ class _RoutePoint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: emphasized ? AppTheme.deepBrandGradient : null,
-            color: emphasized ? null : AppTheme.surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: emphasized ? AppTheme.electricSapphire : AppTheme.line,
+    return SizedBox(
+      width: 72,
+      child: Column(
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: emphasized ? AppTheme.deepBrandGradient : null,
+              color: emphasized ? null : AppTheme.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: emphasized ? AppTheme.electricSapphire : AppTheme.line,
+              ),
+              boxShadow: emphasized
+                  ? [
+                      BoxShadow(
+                        color: AppTheme.electricSapphire.withValues(
+                          alpha: 0.22,
+                        ),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ]
+                  : null,
             ),
-            boxShadow: emphasized
-                ? [
-                    BoxShadow(
-                      color: AppTheme.electricSapphire.withValues(alpha: 0.22),
-                      blurRadius: 18,
-                      offset: const Offset(0, 8),
-                    ),
-                  ]
-                : null,
-          ),
-          child: SizedBox(
-            width: emphasized ? 52 : 46,
-            height: emphasized ? 52 : 46,
-            child: Icon(
-              icon,
-              color: emphasized ? AppTheme.surface : AppTheme.electricSapphire,
-              size: emphasized ? 25 : 22,
+            child: SizedBox(
+              width: emphasized ? 52 : 46,
+              height: emphasized ? 52 : 46,
+              child: Icon(
+                icon,
+                color: emphasized
+                    ? AppTheme.surface
+                    : AppTheme.electricSapphire,
+                size: emphasized ? 25 : 22,
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 7),
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppTheme.muted,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
+          const SizedBox(height: 7),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppTheme.muted,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -698,8 +723,7 @@ class _AuthFormCardState extends State<_AuthFormCard> {
               if (widget.onBiometricLogin != null) ...[
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
-                  onPressed:
-                      widget.isLoading ? null : widget.onBiometricLogin,
+                  onPressed: widget.isLoading ? null : widget.onBiometricLogin,
                   icon: const Icon(Icons.fingerprint_rounded),
                   label: const Text('Entrar con huella o Face ID'),
                 ),

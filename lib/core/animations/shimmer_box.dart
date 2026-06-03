@@ -24,10 +24,8 @@ class _ShimmerBoxState extends State<ShimmerBox>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: Anim.shimmerDuration,
-    )..repeat();
+    _ctrl = AnimationController(vsync: this, duration: Anim.shimmerDuration)
+      ..repeat();
   }
 
   @override
@@ -44,11 +42,7 @@ class _ShimmerBoxState extends State<ShimmerBox>
         final gradient = LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: [
-            Anim.shimmerBase,
-            Anim.shimmerHighlight,
-            Anim.shimmerBase,
-          ],
+          colors: [Anim.shimmerBase, Anim.shimmerHighlight, Anim.shimmerBase],
           stops: [
             (_ctrl.value - 0.2).clamp(0.0, 1.0),
             _ctrl.value.clamp(0.0, 1.0),
@@ -91,11 +85,7 @@ class ShimmerCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          ShimmerBox(
-            width: 44,
-            height: 44,
-            borderRadius: 12,
-          ),
+          ShimmerBox(width: 44, height: 44, borderRadius: 12),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -130,7 +120,7 @@ class ShimmerList extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       itemCount: itemCount,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (_, __) => const ShimmerCard(),
+      itemBuilder: (_, _) => const ShimmerCard(),
     );
   }
 }
