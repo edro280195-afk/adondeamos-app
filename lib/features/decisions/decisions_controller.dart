@@ -1,6 +1,7 @@
 import 'package:adondeamos/core/api/api_providers.dart';
 import 'package:adondeamos/core/api/http_client.dart';
 import 'package:adondeamos/features/auth/auth_controller.dart';
+import 'package:adondeamos/features/saves/saves_controller.dart';
 import 'package:adondeamos/shared/models/decision_models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -43,13 +44,15 @@ class DecisionOps {
     final token = _token;
     if (token == null) throw const ApiException('Sin sesión activa.');
 
+    final pendingSaves = await _ref.read(pendingSavesProvider.future);
+    final placeIds = pendingSaves.map((save) => save.place.id).toList();
+    if (placeIds.isEmpty) {
+      throw const ApiException('No tienes lugares pendientes para decidir.');
+    }
+
     final decision = await _ref
         .read(decisionsApiProvider)
-        .addOptions(
-          token: token,
-          decisionId: decisionId,
-          autoFillFromSaves: true,
-        );
+        .addOptions(token: token, decisionId: decisionId, placeIds: placeIds);
     _ref.read(activeDecisionProvider.notifier).set(decision);
     return decision;
   }

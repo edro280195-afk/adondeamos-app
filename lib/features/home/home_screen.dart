@@ -1,10 +1,14 @@
 import 'package:adondeamos/app/app_theme.dart';
+import 'package:adondeamos/core/api/http_client.dart';
 import 'package:adondeamos/core/animations/animated_list_item.dart';
 import 'package:adondeamos/core/animations/shimmer_box.dart';
 import 'package:adondeamos/features/auth/auth_controller.dart';
+import 'package:adondeamos/features/decisions/decisions_controller.dart';
+import 'package:adondeamos/features/decisions/decisions_screen.dart';
 import 'package:adondeamos/features/saves/saves_controller.dart';
 import 'package:adondeamos/shared/widgets/section_header.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -65,16 +69,26 @@ class HomeScreen extends ConsumerWidget {
                   error: (_, _) => const _ApiOfflineBanner(),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 14),
               AnimatedListItem(
                 index: 2,
+                child: pendingSaves.when(
+                  data: (saves) =>
+                      _DecisionHomeCard(pendingCount: saves.length),
+                  loading: () => const _DecisionHomeCard(pendingCount: null),
+                  error: (_, _) => const _DecisionHomeCard(pendingCount: null),
+                ),
+              ),
+              const SizedBox(height: 24),
+              AnimatedListItem(
+                index: 3,
                 child: const SectionHeader(title: 'Últimos guardados'),
               ),
               pendingSaves.when(
                 data: (saves) {
                   if (saves.isEmpty) {
                     return AnimatedListItem(
-                      index: 3,
+                      index: 4,
                       child: const _EmptyCallToAction(),
                     );
                   }
@@ -82,13 +96,10 @@ class HomeScreen extends ConsumerWidget {
                   return Column(
                     children: List.generate(recent.length, (i) {
                       final save = recent[i];
-                      final name =
-                          save.place.name ??
-                          save.place.googlePlaceId?.substring(0, 10) ??
-                          'Lugar de Google';
+                      final name = save.place.displayName;
                       final city = save.place.city ?? '';
                       return AnimatedListItem(
-                        index: i + 3,
+                        index: i + 4,
                         child: _RecentSaveTile(
                           name: name,
                           city: city,
@@ -172,6 +183,146 @@ class _PendingSummaryLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const ShimmerBox(height: 92, borderRadius: 24);
+  }
+}
+
+class _DecisionHomeCard extends ConsumerStatefulWidget {
+  const _DecisionHomeCard({required this.pendingCount});
+
+  final int? pendingCount;
+
+  @override
+  ConsumerState<_DecisionHomeCard> createState() => _DecisionHomeCardState();
+}
+
+class _DecisionHomeCardState extends ConsumerState<_DecisionHomeCard> {
+  bool _loading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final pendingCount = widget.pendingCount;
+    final subtitle = switch (pendingCount) {
+      null => 'Creo una sesión y cargo tus lugares pendientes.',
+      0 => 'Guarda lugares pendientes para llenarla automáticamente.',
+      1 => 'Uso tu lugar pendiente como opción para votar.',
+      _ => 'Uso tus $pendingCount lugares pendientes como opciones.',
+    };
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.line),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.electricSapphire.withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(24),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: _loading ? null : _startDecision,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.deepBrandGradient,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: _loading
+                      ? const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.how_to_vote_rounded,
+                          color: Colors.white,
+                          size: 27,
+                        ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '¿A dónde vamos?',
+                        style: TextStyle(
+                          color: AppTheme.ink,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          color: AppTheme.muted,
+                          fontSize: 12,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Icon(
+                  Icons.arrow_forward_rounded,
+                  color: AppTheme.electricSapphire,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _startDecision() async {
+    HapticFeedback.mediumImpact();
+    setState(() => _loading = true);
+
+    try {
+      final ops = ref.read(decisionOpsProvider);
+      final decision = await ops.createDecision(context: 'Inicio');
+
+      if (widget.pendingCount != 0) {
+        try {
+          await ops.addFromSaves(decision.id);
+        } on ApiException catch (error) {
+          if (mounted && (widget.pendingCount ?? 0) > 0) {
+            _showMessage(error.message);
+          }
+        }
+      }
+
+      if (!mounted) return;
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const DecisionsScreen()));
+    } on ApiException catch (error) {
+      if (mounted) _showMessage(error.message);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

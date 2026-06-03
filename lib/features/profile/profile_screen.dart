@@ -7,6 +7,7 @@ import 'package:adondeamos/features/groups/groups_screen.dart';
 import 'package:adondeamos/features/invitations/invitations_screen.dart';
 import 'package:adondeamos/features/lists/lists_screen.dart';
 import 'package:adondeamos/features/decisions/decisions_screen.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,9 +25,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   void _navigateTo(BuildContext context, Widget screen) {
     HapticFeedback.lightImpact();
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => screen),
-    );
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
   }
 
   @override
@@ -100,27 +99,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          AnimatedListItem(
-            index: 1,
-            child: _ProfileTile(
-              icon: _checkingApi
-                  ? Icons.sync_rounded
-                  : (_apiOk ? Icons.cloud_done_rounded : Icons.cloud_queue_rounded),
-              iconColor: _apiOk ? AppTheme.green : AppTheme.violet,
-              title: 'API',
-              subtitle: httpClient.baseUrl,
-              onTap: () => _checkApi(httpClient),
-              trailing: _checkingApi
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : null,
+          if (kDebugMode) ...[
+            AnimatedListItem(
+              index: 1,
+              child: _ProfileTile(
+                icon: _checkingApi
+                    ? Icons.sync_rounded
+                    : (_apiOk
+                          ? Icons.cloud_done_rounded
+                          : Icons.cloud_queue_rounded),
+                iconColor: _apiOk ? AppTheme.green : AppTheme.violet,
+                title: 'API',
+                subtitle: httpClient.baseUrl,
+                onTap: () => _checkApi(httpClient),
+                trailing: _checkingApi
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : null,
+              ),
             ),
+            const SizedBox(height: 8),
+          ],
+          AnimatedListItem(
+            index: 2,
+            child: const _SectionLabel(label: 'Social'),
           ),
-          const SizedBox(height: 8),
-          AnimatedListItem(index: 2, child: const _SectionLabel(label: 'Social')),
           AnimatedListItem(
             index: 3,
             child: _ProfileTile(
@@ -140,7 +146,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          AnimatedListItem(index: 5, child: const _SectionLabel(label: 'Organizar')),
+          AnimatedListItem(
+            index: 5,
+            child: const _SectionLabel(label: 'Organizar'),
+          ),
           AnimatedListItem(
             index: 6,
             child: _ProfileTile(
@@ -163,7 +172,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           AnimatedListItem(
             index: 8,
             child: FilledButton.tonalIcon(
-              onPressed: () => ref.read(authControllerProvider.notifier).logout(),
+              onPressed: () =>
+                  ref.read(authControllerProvider.notifier).logout(),
               icon: const Icon(Icons.logout_rounded),
               label: const Text('Cerrar sesión'),
             ),
@@ -194,9 +204,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   static String _initials(String? name) {
@@ -277,9 +287,13 @@ class _ProfileTile extends StatelessWidget {
                 style: const TextStyle(fontWeight: FontWeight.w900),
               ),
               subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-              trailing: trailing ??
+              trailing:
+                  trailing ??
                   (onTap != null
-                      ? const Icon(Icons.chevron_right_rounded, color: AppTheme.muted)
+                      ? const Icon(
+                          Icons.chevron_right_rounded,
+                          color: AppTheme.muted,
+                        )
                       : null),
             ),
           ),

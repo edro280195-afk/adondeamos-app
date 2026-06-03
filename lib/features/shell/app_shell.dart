@@ -1,7 +1,6 @@
 import 'package:adondeamos/app/app_theme.dart';
 import 'package:adondeamos/core/animations/animation_constants.dart';
 import 'package:adondeamos/features/capture/capture_screen.dart';
-import 'package:adondeamos/features/explore/explore_screen.dart';
 import 'package:adondeamos/features/home/home_screen.dart';
 import 'package:adondeamos/features/profile/profile_screen.dart';
 import 'package:adondeamos/features/saves/saves_screen.dart';
@@ -22,7 +21,6 @@ class _AppShellState extends State<AppShell> {
 
   static const _screens = [
     HomeScreen(),
-    ExploreScreen(),
     CaptureScreen(),
     SavesScreen(),
     ProfileScreen(),
@@ -47,13 +45,16 @@ class _AppShellState extends State<AppShell> {
         transitionBuilder: (child, animation) {
           final direction = _index > _previousIndex ? 1.0 : -1.0;
           return SlideTransition(
-            position: Tween<Offset>(
-              begin: Offset(direction * 0.04, 0),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            )),
+            position:
+                Tween<Offset>(
+                  begin: Offset(direction * 0.04, 0),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
             child: FadeTransition(
               opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
                 CurvedAnimation(
@@ -76,11 +77,6 @@ class _AppShellState extends State<AppShell> {
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home_rounded),
             label: 'Inicio',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.search_rounded),
-            selectedIcon: Icon(Icons.travel_explore_rounded),
-            label: 'Explorar',
           ),
           NavigationDestination(
             icon: _AddDestinationIcon(
