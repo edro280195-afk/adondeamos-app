@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:adondeamos/core/api/http_client.dart';
 import 'package:adondeamos/features/saves/save_models.dart';
 
@@ -64,5 +66,33 @@ class SavesApi {
     required String saveId,
   }) async {
     await _client.sendJson('DELETE', '/saves/$saveId', token: token);
+  }
+
+  /// Sube o reemplaza la foto de portada. Devuelve la nueva URL.
+  Future<String> uploadPhoto({
+    required String token,
+    required String saveId,
+    required Uint8List fileBytes,
+    required String contentType,
+    required String fileName,
+  }) async {
+    final json = await _client.sendMultipart(
+      'POST',
+      '/saves/$saveId/photo',
+      fileBytes: fileBytes,
+      contentType: contentType,
+      fileName: fileName,
+      token: token,
+    );
+    final map = json as Map<String, dynamic>;
+    return map['thumbnailUrl'] as String;
+  }
+
+  /// Elimina la foto de portada del guardado.
+  Future<void> deletePhoto({
+    required String token,
+    required String saveId,
+  }) async {
+    await _client.sendJson('DELETE', '/saves/$saveId/photo', token: token);
   }
 }

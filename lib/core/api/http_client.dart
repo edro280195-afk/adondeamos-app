@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 /// Excepción centralizada para errores del API.
 class ApiException implements Exception {
@@ -41,6 +43,54 @@ class HttpApiClient {
     if (body != null) {
       request.body = jsonEncode(body);
     }
+
+    final streamed = await _httpClient.send(request);
+    final response = await http.Response.fromStream(streamed);
+    final text = response.body.trim();
+    final decoded = text.isEmpty ? null : jsonDecode(text);
+
+    if (response.statusCode == 401) {
+      throw const ApiException(
+        'La sesión expiró. Vuelve a iniciar sesión.',
+        statusCode: 401,
+      );
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        _extractError(decoded) ?? 'No se pudo completar la solicitud.',
+        statusCode: response.statusCode,
+      );
+    }
+
+    return decoded;
+  }
+
+  /// Sube un archivo como multipart/form-data. Útil para fotos de portada.
+  Future<dynamic> sendMultipart(
+    String method,
+    String path, {
+    required Uint8List fileBytes,
+    required String contentType,
+    required String fileName,
+    String fieldName = 'file',
+    String? token,
+  }) async {
+    final uri = Uri.parse('$_baseUrl$path');
+    final request = http.MultipartRequest(method, uri);
+
+    if (token != null) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        fieldName,
+        fileBytes,
+        filename: fileName,
+        contentType: MediaType.parse(contentType),
+      ),
+    );
 
     final streamed = await _httpClient.send(request);
     final response = await http.Response.fromStream(streamed);

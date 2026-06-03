@@ -56,4 +56,19 @@ class PlacesApi {
     );
     return Place.fromJson(json as Map<String, dynamic>);
   }
+
+  /// Intenta resolver un enlace. Si es de Google Maps devuelve el lugar resuelto;
+  /// si no, regresa la red detectada y la URL para el flujo manual.
+  Future<ResolveLinkResult> resolveLink({
+    required String token,
+    required String url,
+  }) async {
+    final json = await _client.sendJson(
+      'POST',
+      '/places/resolve-link',
+      token: token,
+      body: {'url': url},
+    );
+    return ResolveLinkResult.fromJson(json as Map<String, dynamic>);
+  }
 }

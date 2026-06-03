@@ -73,6 +73,8 @@ class GooglePlaceDetails {
     this.formattedAddress,
     this.latitude,
     this.longitude,
+    this.photoUrl,
+    this.photoAttribution,
   });
 
   final String placeId;
@@ -80,6 +82,10 @@ class GooglePlaceDetails {
   final String? formattedAddress;
   final double? latitude;
   final double? longitude;
+  /// URL pública de la primera foto del lugar. No se persiste; mostrar con atribución.
+  final String? photoUrl;
+  /// Nombre del autor de la foto (Google Maps contributor).
+  final String? photoAttribution;
 
   factory GooglePlaceDetails.fromJson(Map<String, dynamic> json) {
     return GooglePlaceDetails(
@@ -88,6 +94,8 @@ class GooglePlaceDetails {
       formattedAddress: safeStrOrNull(json['formattedAddress']),
       latitude: safeDoubleOrNull(json['latitude']),
       longitude: safeDoubleOrNull(json['longitude']),
+      photoUrl: safeStrOrNull(json['photoUrl']),
+      photoAttribution: safeStrOrNull(json['photoAttribution']),
     );
   }
 }
@@ -104,6 +112,35 @@ class PlaceResolveResult {
       google: GooglePlaceDetails.fromJson(
         json['google'] as Map<String, dynamic>,
       ),
+    );
+  }
+}
+
+/// Resultado de POST /places/resolve-link.
+/// resolved=true → es de Google Maps y el lugar fue resuelto.
+/// resolved=false → la URL no es de Maps; sourceNetwork y url se usan para el flujo manual.
+class ResolveLinkResult {
+  const ResolveLinkResult({
+    required this.resolved,
+    this.place,
+    this.sourceNetwork,
+    this.url,
+  });
+
+  final bool resolved;
+  final PlaceResolveResult? place;
+  final String? sourceNetwork;
+  final String? url;
+
+  factory ResolveLinkResult.fromJson(Map<String, dynamic> json) {
+    final raw = json['place'];
+    return ResolveLinkResult(
+      resolved: json['resolved'] as bool? ?? false,
+      place: raw != null
+          ? PlaceResolveResult.fromJson(raw as Map<String, dynamic>)
+          : null,
+      sourceNetwork: safeStrOrNull(json['sourceNetwork']),
+      url: safeStrOrNull(json['url']),
     );
   }
 }
