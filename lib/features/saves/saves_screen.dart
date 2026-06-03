@@ -249,61 +249,121 @@ class _SaveTile extends StatelessWidget {
   final PlaceSave save;
   final bool isPending;
 
+  // Paleta de color por red social
+  static (Color bg, Color fg) _networkPalette(String n) => switch (n) {
+    'tiktok'     => (const Color(0xFFF2F2F2), const Color(0xFF141414)),
+    'instagram'  => (const Color(0xFFFBE8F2), const Color(0xFFBD2470)),
+    'facebook'   => (const Color(0xFFEAF1FD), const Color(0xFF1877F2)),
+    'whatsapp'   => (const Color(0xFFE6F7F0), const Color(0xFF128C7E)),
+    'youtube'    => (const Color(0xFFFFEAEA), const Color(0xFFCC0000)),
+    'googleMaps' => (AppTheme.surfaceBlue, AppTheme.electricSapphire),
+    _            => (AppTheme.surfaceBlue, AppTheme.electricSapphire),
+  };
+
+  static IconData _networkIcon(String n) => switch (n) {
+    'tiktok'     => Icons.music_note_rounded,
+    'instagram'  => Icons.camera_alt_rounded,
+    'facebook'   => Icons.facebook_rounded,
+    'whatsapp'   => Icons.chat_rounded,
+    'googleMaps' => Icons.map_rounded,
+    'youtube'    => Icons.play_circle_rounded,
+    _            => Icons.place_rounded,
+  };
+
+  static String _networkLabel(String n) => switch (n) {
+    'tiktok'     => 'TikTok',
+    'instagram'  => 'Instagram',
+    'facebook'   => 'Facebook',
+    'whatsapp'   => 'WhatsApp',
+    'googleMaps' => 'Google Maps',
+    'youtube'    => 'YouTube',
+    _            => 'Manual',
+  };
+
   @override
   Widget build(BuildContext context) {
     final placeName = save.place.displayName;
     final city = save.place.city;
+    final (bgColor, fgColor) = _networkPalette(save.sourceNetwork);
 
-    return DecoratedBox(
+    return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.electricSapphire.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Container(
-              width: 62,
-              height: 62,
-              decoration: BoxDecoration(
-                color: AppTheme.violetSoft,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(
-                _networkIcon(save.sourceNetwork),
-                color: AppTheme.violet,
-                size: 28,
-              ),
+            // Leading: thumbnail o ícono de red con color específico
+            _SaveLeadingIcon(
+              save: save,
+              bgColor: bgColor,
+              fgColor: fgColor,
+              icon: _networkIcon(save.sourceNetwork),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
+
+            // Contenido textual
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     placeName,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
+                      height: 1.2,
+                      color: AppTheme.ink,
                     ),
                   ),
                   if (city != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      city,
-                      style: const TextStyle(
-                        color: AppTheme.muted,
-                        fontSize: 13,
-                      ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        const Icon(Icons.place_rounded, size: 11, color: AppTheme.muted),
+                        const SizedBox(width: 3),
+                        Text(
+                          city,
+                          style: const TextStyle(
+                            color: AppTheme.muted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 7),
                   Row(
                     children: [
-                      _NetworkChip(network: save.sourceNetwork),
+                      // Chip de red con color específico
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          _networkLabel(save.sourceNetwork),
+                          style: TextStyle(
+                            color: fgColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                       if (save.note != null) ...[
                         const SizedBox(width: 6),
                         Flexible(
@@ -313,7 +373,8 @@ class _SaveTile extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: AppTheme.muted,
-                              fontSize: 12,
+                              fontSize: 11,
+                              fontStyle: FontStyle.italic,
                             ),
                           ),
                         ),
@@ -323,62 +384,89 @@ class _SaveTile extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(
-              isPending ? Icons.bookmark_rounded : Icons.check_circle_rounded,
-              color: isPending ? AppTheme.violet : AppTheme.green,
+
+            // Indicador de estado (punto de color)
+            Padding(
+              padding: const EdgeInsets.only(left: 10),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isPending ? AppTheme.warm : AppTheme.green,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Icon(
+                    isPending ? Icons.bookmark_rounded : Icons.check_circle_rounded,
+                    size: 18,
+                    color: isPending
+                        ? AppTheme.warm.withValues(alpha: 0.7)
+                        : AppTheme.green.withValues(alpha: 0.7),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
   }
+}
 
-  IconData _networkIcon(String network) => switch (network) {
-    'tiktok' => Icons.music_note_rounded,
-    'instagram' => Icons.camera_alt_rounded,
-    'facebook' => Icons.facebook_rounded,
-    'whatsapp' => Icons.chat_rounded,
-    'googleMaps' => Icons.map_rounded,
-    'youtube' => Icons.play_circle_rounded,
-    _ => Icons.place_rounded,
-  };
+class _SaveLeadingIcon extends StatelessWidget {
+  const _SaveLeadingIcon({
+    required this.save,
+    required this.bgColor,
+    required this.fgColor,
+    required this.icon,
+  });
+
+  final PlaceSave save;
+  final Color bgColor;
+  final Color fgColor;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final thumb = save.thumbnailUrl;
+
+    if (thumb != null && thumb.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Image.network(
+          thumb,
+          width: 68,
+          height: 68,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _iconBox(),
+        ),
+      );
+    }
+
+    return _iconBox();
+  }
+
+  Widget _iconBox() => Container(
+    width: 68,
+    height: 68,
+    decoration: BoxDecoration(
+      color: bgColor,
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Icon(icon, color: fgColor, size: 30),
+  );
 }
 
 class _NetworkChip extends StatelessWidget {
   const _NetworkChip({required this.network});
-
   final String network;
 
   @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppTheme.violetSoft,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-        child: Text(
-          _label,
-          style: const TextStyle(
-            color: AppTheme.violet,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-
-  String get _label => switch (network) {
-    'tiktok' => 'TikTok',
-    'instagram' => 'Instagram',
-    'facebook' => 'Facebook',
-    'whatsapp' => 'WhatsApp',
-    'googleMaps' => 'Google Maps',
-    'youtube' => 'YouTube',
-    _ => 'Manual',
-  };
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 class _ErrorState extends StatelessWidget {

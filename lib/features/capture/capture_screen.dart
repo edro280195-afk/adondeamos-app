@@ -158,12 +158,21 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
     if (resolved == null || token == null) return;
     setState(() => _isSaving = true);
     try {
+      // Si el lugar es de Google y el usuario no pegó un URL de origen, la fuente
+      // es Google Maps directamente. Si pegó un URL (TikTok, IG, etc.) se detecta la red.
+      final hasUrl = _urlController.text.trim().isNotEmpty;
+      final network = hasUrl
+          ? _detectSourceNetwork(_urlController.text)
+          : resolved.place.origin == 'google'
+              ? 'googleMaps'
+              : 'manual';
+
       await ref
           .read(savesApiProvider)
           .createSave(
             token: token,
             placeId: resolved.place.id,
-            sourceNetwork: _detectSourceNetwork(_urlController.text),
+            sourceNetwork: network,
             sourceUrl: _emptyToNull(_urlController.text),
             note: _emptyToNull(_noteController.text),
             visibility: _visibility,
