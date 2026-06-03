@@ -17,13 +17,15 @@ class ListDetailScreen extends ConsumerWidget {
 
     return detail.when(
       data: (list) => _ListDetailBody(list: list),
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (error, _) => Scaffold(
         appBar: AppBar(title: const Text('Lista')),
         body: Center(
-          child: Text(error.toString(), style: const TextStyle(color: AppTheme.muted)),
+          child: Text(
+            error.toString(),
+            style: const TextStyle(color: AppTheme.muted),
+          ),
         ),
       ),
     );
@@ -53,10 +55,7 @@ class _ListDetailBody extends ConsumerWidget {
               itemBuilder: (_, index) {
                 final item = list.items[index];
                 final save = item.save;
-                final name =
-                    save.place.name ??
-                    save.place.googlePlaceId?.substring(0, 8) ??
-                    'Lugar';
+                final name = save.place.displayName;
                 return Padding(
                   padding: EdgeInsets.only(
                     bottom: index < list.items.length - 1 ? 10 : 0,
@@ -74,7 +73,10 @@ class _ListDetailBody extends ConsumerWidget {
                       child: const Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.remove_circle_outline_rounded, color: Colors.white),
+                          Icon(
+                            Icons.remove_circle_outline_rounded,
+                            color: Colors.white,
+                          ),
                           SizedBox(height: 4),
                           Text(
                             'Quitar',
@@ -93,7 +95,9 @@ class _ListDetailBody extends ConsumerWidget {
                             context: context,
                             builder: (ctx) => AlertDialog(
                               title: const Text('Quitar lugar'),
-                              content: const Text('¿Quitar este lugar de la lista?'),
+                              content: const Text(
+                                '¿Quitar este lugar de la lista?',
+                              ),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx, false),
@@ -109,9 +113,9 @@ class _ListDetailBody extends ConsumerWidget {
                           false;
                     },
                     onDismissed: (_) {
-                      ref.read(listDetailProvider(list.id).notifier).removeItem(
-                            save.id,
-                          );
+                      ref
+                          .read(listDetailProvider(list.id).notifier)
+                          .removeItem(save.id);
                     },
                     child: DecoratedBox(
                       decoration: BoxDecoration(
@@ -142,7 +146,10 @@ class _ListDetailBody extends ConsumerWidget {
                         ),
                         title: Text(
                           name,
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                          ),
                         ),
                         subtitle: Text(
                           save.place.city ?? 'Sin ciudad',
@@ -157,5 +164,3 @@ class _ListDetailBody extends ConsumerWidget {
     );
   }
 }
-
-

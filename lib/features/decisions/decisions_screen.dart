@@ -19,19 +19,18 @@ class DecisionsScreen extends ConsumerWidget {
       duration: const Duration(milliseconds: 300),
       switchInCurve: Curves.easeOut,
       switchOutCurve: Curves.easeIn,
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: child,
-      ),
+      transitionBuilder: (child, animation) =>
+          FadeTransition(opacity: animation, child: child),
       child: decision == null
           ? const _StartScreen(key: ValueKey('start'))
           : decision.hasMatch
-              ? _MatchScreen(key: const ValueKey('match'), decision: decision)
-              : decision.options.isEmpty
-                  ? _AddOptionsScreen(
-                      key: const ValueKey('options'), decision: decision)
-                  : _VotingScreen(
-                      key: const ValueKey('voting'), decision: decision),
+          ? _MatchScreen(key: const ValueKey('match'), decision: decision)
+          : decision.options.isEmpty
+          ? _AddOptionsScreen(
+              key: const ValueKey('options'),
+              decision: decision,
+            )
+          : _VotingScreen(key: const ValueKey('voting'), decision: decision),
     );
   }
 }
@@ -79,19 +78,29 @@ class _StartScreenState extends ConsumerState<_StartScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.1),
-                  end: Offset.zero,
-                ).animate(CurvedAnimation(
-                  parent: _entranceCtrl,
-                  curve: const Interval(0.0, 0.6, curve: Curves.easeOutCubic),
-                )),
+                position:
+                    Tween<Offset>(
+                      begin: const Offset(0, 0.1),
+                      end: Offset.zero,
+                    ).animate(
+                      CurvedAnimation(
+                        parent: _entranceCtrl,
+                        curve: const Interval(
+                          0.0,
+                          0.6,
+                          curve: Curves.easeOutCubic,
+                        ),
+                      ),
+                    ),
                 child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       '¿A dónde vamos?',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                     SizedBox(height: 8),
                     Text(
@@ -103,13 +112,20 @@ class _StartScreenState extends ConsumerState<_StartScreen>
               ),
               const SizedBox(height: 36),
               SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.08),
-                  end: Offset.zero,
-                ).animate(CurvedAnimation(
-                  parent: _entranceCtrl,
-                  curve: const Interval(0.2, 0.8, curve: Curves.easeOutCubic),
-                )),
+                position:
+                    Tween<Offset>(
+                      begin: const Offset(0, 0.08),
+                      end: Offset.zero,
+                    ).animate(
+                      CurvedAnimation(
+                        parent: _entranceCtrl,
+                        curve: const Interval(
+                          0.2,
+                          0.8,
+                          curve: Curves.easeOutCubic,
+                        ),
+                      ),
+                    ),
                 child: Opacity(
                   opacity: _entranceCtrl.value.clamp(0.0, 1.0),
                   child: _DecisionCard(
@@ -123,13 +139,20 @@ class _StartScreenState extends ConsumerState<_StartScreen>
               ),
               const SizedBox(height: 14),
               SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.08),
-                  end: Offset.zero,
-                ).animate(CurvedAnimation(
-                  parent: _entranceCtrl,
-                  curve: const Interval(0.35, 0.9, curve: Curves.easeOutCubic),
-                )),
+                position:
+                    Tween<Offset>(
+                      begin: const Offset(0, 0.08),
+                      end: Offset.zero,
+                    ).animate(
+                      CurvedAnimation(
+                        parent: _entranceCtrl,
+                        curve: const Interval(
+                          0.35,
+                          0.9,
+                          curve: Curves.easeOutCubic,
+                        ),
+                      ),
+                    ),
                 child: Opacity(
                   opacity: _entranceCtrl.value.clamp(0.0, 1.0),
                   child: _DecisionCard(
@@ -159,9 +182,9 @@ class _StartScreenState extends ConsumerState<_StartScreen>
       await ref.read(decisionOpsProvider).createDecision(groupId: groupId);
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -233,7 +256,10 @@ class _DecisionCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         subtitle,
-                        style: const TextStyle(color: AppTheme.muted, fontSize: 13),
+                        style: const TextStyle(
+                          color: AppTheme.muted,
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ),
@@ -291,7 +317,9 @@ class _AddOptionsScreenState extends ConsumerState<_AddOptionsScreen> {
             const SizedBox(height: 32),
             FilledButton.icon(
               onPressed: _loading ? null : _autoFill,
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+              ),
               icon: _loading
                   ? const SizedBox(
                       width: 18,
@@ -323,9 +351,9 @@ class _AddOptionsScreenState extends ConsumerState<_AddOptionsScreen> {
       await ref.read(decisionOpsProvider).addFromSaves(widget.decision.id);
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -384,16 +412,18 @@ class _VotingScreen extends ConsumerWidget {
               onVote: (isYes) async {
                 HapticFeedback.lightImpact();
                 try {
-                  await ref.read(decisionOpsProvider).castVote(
+                  await ref
+                      .read(decisionOpsProvider)
+                      .castVote(
                         decisionId: decision.id,
                         optionId: option.id,
                         isYes: isYes,
                       );
                 } on ApiException catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(e.message)),
-                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(e.message)));
                   }
                 }
               },
@@ -418,10 +448,7 @@ class _OptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name =
-        option.place.name ??
-        option.place.googlePlaceId?.substring(0, 10) ??
-        'Lugar de Google';
+    final name = option.place.displayName;
     final yesCount = option.votes.where((v) => v.isYes).length;
     final noCount = option.votes.where((v) => !v.isYes).length;
 
@@ -429,8 +456,9 @@ class _OptionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border:
-            option.isMatch ? Border.all(color: AppTheme.green, width: 2) : null,
+        border: option.isMatch
+            ? Border.all(color: AppTheme.green, width: 2)
+            : null,
         boxShadow: option.isMatch
             ? [
                 BoxShadow(
@@ -464,7 +492,10 @@ class _OptionCard extends StatelessWidget {
                       borderRadius: BorderRadius.all(Radius.circular(8)),
                     ),
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       child: Text(
                         '¡Match!',
                         style: TextStyle(
@@ -501,7 +532,9 @@ class _OptionCard extends StatelessWidget {
                         const SizedBox(width: 3),
                         Flexible(
                           flex: noCount,
-                          child: Container(color: AppTheme.error.withValues(alpha: 0.4)),
+                          child: Container(
+                            color: AppTheme.error.withValues(alpha: 0.4),
+                          ),
                         ),
                       ],
                     ],
@@ -691,9 +724,8 @@ class _MatchScreenState extends ConsumerState<_MatchScreen>
                       ),
                       const SizedBox(height: 32),
                       FilledButton.icon(
-                        onPressed: () => ref
-                            .read(activeDecisionProvider.notifier)
-                            .clear(),
+                        onPressed: () =>
+                            ref.read(activeDecisionProvider.notifier).clear(),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppTheme.electricSapphire,
                           foregroundColor: AppTheme.surface,
@@ -721,10 +753,7 @@ class _MatchPlaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name =
-        option.place.name ??
-        option.place.googlePlaceId?.substring(0, 10) ??
-        'Lugar de Google';
+    final name = option.place.displayName;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),

@@ -19,6 +19,17 @@ class Place {
   final double? longitude;
   final String? city;
 
+  bool get isOwn => origin == 'own';
+
+  bool get isGoogle => origin == 'google';
+
+  String get displayName {
+    final cleanName = name?.trim();
+    if (cleanName != null && cleanName.isNotEmpty) return cleanName;
+    if (isOwn) return 'Lugar propio';
+    return 'Lugar de Google';
+  }
+
   factory Place.fromJson(Map<String, dynamic> json) {
     return Place(
       id: safeStr(json['id']),

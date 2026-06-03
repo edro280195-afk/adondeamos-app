@@ -53,10 +53,8 @@ class _SavesScreenState extends ConsumerState<SavesScreen>
         duration: const Duration(milliseconds: 250),
         switchInCurve: Curves.easeOut,
         switchOutCurve: Curves.easeIn,
-        transitionBuilder: (child, animation) => FadeTransition(
-          opacity: animation,
-          child: child,
-        ),
+        transitionBuilder: (child, animation) =>
+            FadeTransition(opacity: animation, child: child),
         child: TabBarView(
           key: ValueKey(_tabs.index),
           controller: _tabs,
@@ -77,8 +75,9 @@ class _SavesTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final provider =
-        status == 'pending' ? pendingSavesProvider : visitedSavesProvider;
+    final provider = status == 'pending'
+        ? pendingSavesProvider
+        : visitedSavesProvider;
     final saves = ref.watch(provider);
 
     return RefreshIndicator(
@@ -104,7 +103,7 @@ class _SavesLoading extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       itemCount: 5,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (_, __) => const ShimmerCard(height: 86),
+      itemBuilder: (_, _) => const ShimmerCard(height: 86),
     );
   }
 }
@@ -140,10 +139,7 @@ class _SavesList extends ConsumerWidget {
         final save = items[index];
         return Padding(
           padding: EdgeInsets.only(bottom: index < items.length - 1 ? 10 : 0),
-          child: _SwipeableSaveTile(
-            save: save,
-            isPending: status == 'pending',
-          ),
+          child: _SwipeableSaveTile(save: save, isPending: status == 'pending'),
         );
       },
     );
@@ -211,15 +207,16 @@ class _SwipeableSaveTile extends ConsumerWidget {
             false;
       },
       onDismissed: (_) async {
-        final provider =
-            isPending ? pendingSavesProvider : visitedSavesProvider;
+        final provider = isPending
+            ? pendingSavesProvider
+            : visitedSavesProvider;
         try {
           await ref.read(provider.notifier).deleteSave(save.id);
         } catch (e) {
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('No se pudo eliminar: $e')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('No se pudo eliminar: $e')));
           }
         }
       },
@@ -231,9 +228,7 @@ class _SwipeableSaveTile extends ConsumerWidget {
           onTap: () {
             HapticFeedback.lightImpact();
             Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => SaveDetailScreen(save: save),
-              ),
+              MaterialPageRoute(builder: (_) => SaveDetailScreen(save: save)),
             );
           },
           child: _SaveTile(save: save, isPending: isPending),
@@ -251,10 +246,7 @@ class _SaveTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final placeName =
-        save.place.name ??
-        save.place.googlePlaceId?.substring(0, 8) ??
-        'Lugar de Google';
+    final placeName = save.place.displayName;
     final city = save.place.city;
 
     return DecoratedBox(
@@ -397,7 +389,11 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 64, color: AppTheme.muted),
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 64,
+              color: AppTheme.muted,
+            ),
             const SizedBox(height: 16),
             const Text(
               'No pude cargar tus guardados',
@@ -428,10 +424,7 @@ class SaveDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final placeName =
-        save.place.name ??
-        save.place.googlePlaceId?.substring(0, 8) ??
-        'Lugar de Google';
+    final placeName = save.place.displayName;
 
     return Scaffold(
       body: CustomScrollView(
@@ -443,7 +436,11 @@ class SaveDetailScreen extends ConsumerWidget {
               background: Container(
                 decoration: BoxDecoration(gradient: AppTheme.deepBrandGradient),
                 child: const Center(
-                  child: Icon(Icons.place_rounded, size: 72, color: Colors.white38),
+                  child: Icon(
+                    Icons.place_rounded,
+                    size: 72,
+                    color: Colors.white38,
+                  ),
                 ),
               ),
             ),
@@ -456,7 +453,10 @@ class SaveDetailScreen extends ConsumerWidget {
                 children: [
                   Text(
                     placeName,
-                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   if (save.place.city != null)
