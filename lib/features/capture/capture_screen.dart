@@ -9,7 +9,10 @@ import 'package:adondeamos/features/places/place_models.dart';
 import 'package:adondeamos/features/saves/saves_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_dragmarker/flutter_map_dragmarker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
 
 class CaptureScreen extends ConsumerStatefulWidget {
   const CaptureScreen({super.key});
@@ -153,14 +156,16 @@ class _SearchTabState extends ConsumerState<_SearchTab> {
     if (resolved == null || token == null) return;
     setState(() => _isSaving = true);
     try {
-      await ref.read(savesApiProvider).createSave(
-        token: token,
-        placeId: resolved.place.id,
-        sourceNetwork: _detectSourceNetwork(_urlController.text),
-        sourceUrl: _emptyToNull(_urlController.text),
-        note: _emptyToNull(_noteController.text),
-        visibility: _visibility,
-      );
+      await ref
+          .read(savesApiProvider)
+          .createSave(
+            token: token,
+            placeId: resolved.place.id,
+            sourceNetwork: _detectSourceNetwork(_urlController.text),
+            sourceUrl: _emptyToNull(_urlController.text),
+            note: _emptyToNull(_noteController.text),
+            visibility: _visibility,
+          );
       ref.invalidate(pendingSavesProvider);
       _reset();
       _showMessage('¡Lugar guardado!');
@@ -515,8 +520,15 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
   // Con const String no hay ninguna conversión: el valor ya es String.
   static const String _defLat = '27.4779';
   static const String _defLng = '-99.5496';
+  static const double _defaultLatitude = 27.4779;
+  static const double _defaultLongitude = -99.5496;
+  static const LatLng _defaultPoint = LatLng(
+    _defaultLatitude,
+    _defaultLongitude,
+  );
 
   final _formKey = GlobalKey<FormState>();
+  final _mapController = MapController();
 
   late final TextEditingController _urlCtrl;
   late final TextEditingController _nameCtrl;
@@ -525,17 +537,18 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
   late final TextEditingController _lngCtrl;
   late final TextEditingController _noteCtrl;
 
+  LatLng _selectedPoint = _defaultPoint;
   String _visibility = 'private';
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _urlCtrl  = TextEditingController();
+    _urlCtrl = TextEditingController();
     _nameCtrl = TextEditingController();
     _cityCtrl = TextEditingController(text: 'Nuevo Laredo');
-    _latCtrl  = TextEditingController(text: _defLat); // String literal directo
-    _lngCtrl  = TextEditingController(text: _defLng); // String literal directo
+    _latCtrl = TextEditingController(text: _defLat); // String literal directo
+    _lngCtrl = TextEditingController(text: _defLng); // String literal directo
     _noteCtrl = TextEditingController();
     // SIN addListener: el preview usa ValueListenableBuilder para no disparar
     // un setState completo en cada tecla (que era lo que desencadenaba el error).
@@ -570,10 +583,10 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
           // en cada tecla, lo que re-evaluaba la const double y causaba el TypeError.
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: _nameCtrl,
-            builder: (_ , nameVal, _) {
+            builder: (_, nameVal, _) {
               return ValueListenableBuilder<TextEditingValue>(
                 valueListenable: _cityCtrl,
-                builder: (_ , cityVal, _) {
+                builder: (_, cityVal, _) {
                   final name = nameVal.text.trim();
                   final city = cityVal.text.trim();
                   return AnimatedSize(
@@ -636,19 +649,13 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
             icon: Icons.my_location_rounded,
             label: 'Coordenadas',
             color: AppTheme.green,
-            trailing: TextButton.icon(
-              onPressed: _showCoordsHelp,
-              icon: const Icon(Icons.help_outline_rounded, size: 15),
-              label: const Text('¿Cómo obtenerlas?'),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                textStyle: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
             children: [
+              _ManualMapPicker(
+                point: _selectedPoint,
+                mapController: _mapController,
+                onPointChanged: _setSelectedPoint,
+              ),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(
@@ -663,6 +670,7 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
                         labelText: 'Latitud',
                         prefixIcon: Icon(Icons.swap_vert_rounded),
                       ),
+                      onFieldSubmitted: (_) => _applyCoordinatesFromFields(),
                       validator: _validateCoord,
                     ),
                   ),
@@ -679,10 +687,20 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
                         labelText: 'Longitud',
                         prefixIcon: Icon(Icons.swap_horiz_rounded),
                       ),
+                      onFieldSubmitted: (_) => _applyCoordinatesFromFields(),
                       validator: _validateCoord,
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: _applyCoordinatesFromFields,
+                  icon: const Icon(Icons.tune_rounded, size: 16),
+                  label: const Text('Aplicar ajuste fino'),
+                ),
               ),
             ],
           ),
@@ -691,7 +709,7 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
           // ── Origen: ValueListenableBuilder para el badge de red (sin setState).
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: _urlCtrl,
-            builder: (_ , urlVal, _) {
+            builder: (_, urlVal, _) {
               final network = _detectSourceNetwork(urlVal.text);
               return _Section(
                 icon: Icons.link_rounded,
@@ -756,7 +774,7 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
           // ── Botón guardar: ValueListenableBuilder para el label con el nombre.
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: _nameCtrl,
-            builder: (_ , nameVal, _) {
+            builder: (_, nameVal, _) {
               final name = nameVal.text.trim();
               return _SaveButton(
                 isSaving: _isSaving,
@@ -782,22 +800,26 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
 
     setState(() => _isSaving = true);
     try {
-      final place = await ref.read(placesApiProvider).createOwnPlace(
-        token: token,
-        name: _nameCtrl.text.trim(),
-        latitude: double.parse(_latCtrl.text.trim()),
-        longitude: double.parse(_lngCtrl.text.trim()),
-        city: _emptyToNull(_cityCtrl.text),
-      );
+      final place = await ref
+          .read(placesApiProvider)
+          .createOwnPlace(
+            token: token,
+            name: _nameCtrl.text.trim(),
+            latitude: double.parse(_latCtrl.text.trim()),
+            longitude: double.parse(_lngCtrl.text.trim()),
+            city: _emptyToNull(_cityCtrl.text),
+          );
 
-      await ref.read(savesApiProvider).createSave(
-        token: token,
-        placeId: place.id,
-        sourceNetwork: _detectSourceNetwork(_urlCtrl.text),
-        sourceUrl: _emptyToNull(_urlCtrl.text),
-        note: _emptyToNull(_noteCtrl.text),
-        visibility: _visibility,
-      );
+      await ref
+          .read(savesApiProvider)
+          .createSave(
+            token: token,
+            placeId: place.id,
+            sourceNetwork: _detectSourceNetwork(_urlCtrl.text),
+            sourceUrl: _emptyToNull(_urlCtrl.text),
+            note: _emptyToNull(_noteCtrl.text),
+            visibility: _visibility,
+          );
 
       ref.invalidate(pendingSavesProvider);
       _clearForm();
@@ -815,21 +837,42 @@ class _ManualTabState extends ConsumerState<_ManualTab> {
     _urlCtrl.clear();
     _nameCtrl.clear();
     _cityCtrl.text = 'Nuevo Laredo';
-    _latCtrl.text = _defLat; // String literal directo, sin conversión
-    _lngCtrl.text = _defLng; // String literal directo, sin conversión
+    _latCtrl.text = _defLat;
+    _lngCtrl.text = _defLng;
     _noteCtrl.clear();
-    setState(() => _visibility = 'private');
+    setState(() {
+      _selectedPoint = _defaultPoint;
+      _visibility = 'private';
+    });
+    _moveMapTo(_defaultPoint);
   }
 
-  void _showCoordsHelp() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => const _CoordsHelpSheet(),
-    );
+  void _setSelectedPoint(LatLng point) {
+    setState(() => _selectedPoint = point);
+    _latCtrl.text = point.latitude.toStringAsFixed(6);
+    _lngCtrl.text = point.longitude.toStringAsFixed(6);
+  }
+
+  void _applyCoordinatesFromFields() {
+    final latitude = double.tryParse(_latCtrl.text.trim());
+    final longitude = double.tryParse(_lngCtrl.text.trim());
+
+    if (latitude == null || longitude == null) {
+      _showSnack('Coordenadas inválidas.');
+      return;
+    }
+
+    final point = LatLng(latitude, longitude);
+    setState(() => _selectedPoint = point);
+    _moveMapTo(point);
+  }
+
+  void _moveMapTo(LatLng point) {
+    try {
+      _mapController.move(point, _mapController.camera.zoom);
+    } catch (_) {
+      // El mapa puede no estar listo cuando se limpia el formulario.
+    }
   }
 
   void _showSnack(String message) {
@@ -1054,14 +1097,12 @@ class _Section extends StatelessWidget {
     required this.label,
     required this.color,
     required this.children,
-    this.trailing,
   });
 
   final IconData icon;
   final String label;
   final Color color;
   final List<Widget> children;
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -1088,12 +1129,100 @@ class _Section extends StatelessWidget {
                 color: AppTheme.ink,
               ),
             ),
-            if (trailing != null) ...[const Spacer(), trailing!],
           ],
         ),
         const SizedBox(height: 10),
         ...children,
       ],
+    );
+  }
+}
+
+class _ManualMapPicker extends StatelessWidget {
+  const _ManualMapPicker({
+    required this.point,
+    required this.mapController,
+    required this.onPointChanged,
+  });
+
+  final LatLng point;
+  final MapController mapController;
+  final ValueChanged<LatLng> onPointChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: SizedBox(
+        height: 245,
+        child: FlutterMap(
+          mapController: mapController,
+          options: MapOptions(
+            initialCenter: point,
+            initialZoom: 15,
+            interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.all,
+            ),
+            onTap: (_, latLng) => onPointChanged(latLng),
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.adondeamos.app',
+            ),
+            DragMarkers(
+              markers: [
+                DragMarker(
+                  point: point,
+                  size: const Size(56, 56),
+                  alignment: Alignment.bottomCenter,
+                  builder: (context, position, isDragging) {
+                    return _MapPin(isDragging: isDragging);
+                  },
+                  onDragEnd: (_, latLng) => onPointChanged(latLng),
+                ),
+              ],
+            ),
+            const RichAttributionWidget(
+              showFlutterMapAttribution: false,
+              attributions: [
+                TextSourceAttribution('OpenStreetMap contributors'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MapPin extends StatelessWidget {
+  const _MapPin({required this.isDragging});
+
+  final bool isDragging;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedScale(
+      duration: const Duration(milliseconds: 140),
+      scale: isDragging ? 1.08 : 1,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.electricSapphire.withValues(alpha: 0.28),
+              blurRadius: 16,
+              offset: const Offset(0, 7),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.location_pin,
+          color: AppTheme.electricSapphire,
+          size: 54,
+        ),
+      ),
     );
   }
 }
@@ -1234,8 +1363,8 @@ class _SaveButton extends StatelessWidget {
 }
 
 /// Bottom sheet con instrucciones para obtener coordenadas desde Google Maps.
-class _CoordsHelpSheet extends StatelessWidget {
-  const _CoordsHelpSheet();
+class CoordsHelpSheet extends StatelessWidget {
+  const CoordsHelpSheet({super.key});
 
   @override
   Widget build(BuildContext context) {
